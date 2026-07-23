@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #f7f5f0;
+  --foreground: #0b3d3a;
+  --surface: rgba(255, 255, 255, 0.72);
+  --line: rgba(11, 61, 58, 0.12);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: var(--font-sans), sans-serif;
+  min-height: 100vh;
+}
+
+::selection {
+  background: #b5e6d6;
+  color: #061816;
+}
+
+@layer components {
+  .surface {
+    @apply rounded-2xl border border-[var(--line)] bg-white/70 backdrop-blur-sm shadow-soft;
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl bg-ink-900 px-5 py-2.5 text-sm font-semibold text-mint-50 transition hover:bg-ink-800 active:scale-[0.98];
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl border border-[var(--line)] bg-white/80 px-5 py-2.5 text-sm font-semibold text-ink-900 transition hover:bg-mint-100;
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-[var(--line)] bg-white/90 px-3.5 py-2.5 text-sm text-ink-900 outline-none transition placeholder:text-sand-500 focus:border-mint-600 focus:ring-2 focus:ring-mint-200;
+  }
+
+  .label {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-[0.08em] text-ink-800/70;
+  }
+}
