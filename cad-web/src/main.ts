@@ -228,7 +228,19 @@ class CadApp {
 
   private bindUi(root: HTMLElement) {
     root.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((btn) => {
-      btn.addEventListener('click', () => this.onAction(btn.dataset.action ?? ''))
+      const run = (ev: Event) => {
+        // pointerdown evita perder a seleção antes do click em alguns ambientes
+        if (btn.dataset.action === 'create-block' && ev.type === 'click') return
+        this.onAction(btn.dataset.action ?? '')
+      }
+      if (btn.dataset.action === 'create-block') {
+        btn.addEventListener('pointerdown', (ev) => {
+          ev.preventDefault()
+          ev.stopPropagation()
+          run(ev)
+        })
+      }
+      btn.addEventListener('click', run)
     })
 
     root.querySelectorAll<HTMLButtonElement>('[data-toggle]').forEach((btn) => {
