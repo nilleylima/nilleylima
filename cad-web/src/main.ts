@@ -427,6 +427,11 @@ class CadApp {
         return
       }
 
+      if (ev.key === 'Escape' && this.maximized) {
+        this.setMaximized(false, true)
+        return
+      }
+
       const tool = TOOL_META.find((t) => t.key === ev.key.toLowerCase())
       if (tool && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
         // 'c' also closes polyline — handled above when polyline tool consumes it
