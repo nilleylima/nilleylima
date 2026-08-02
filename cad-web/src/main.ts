@@ -70,6 +70,9 @@ class CadApp {
   private middlePan = false
   private panLast: { x: number; y: number } | null = null
   private raf = 0
+  private maximized = false
+  private appEl!: HTMLElement
+  private maximizeBtn!: HTMLButtonElement
 
   mount(root: HTMLElement) {
     root.innerHTML = `
@@ -91,6 +94,7 @@ class CadApp {
             <button type="button" data-action="redo">Refazer</button>
             <button type="button" data-action="fit">Enquadrar</button>
             <button type="button" data-action="reset">Origem</button>
+            <button type="button" data-action="maximize" id="btn-maximize" title="Maximizar área de desenho (F11)">Maximizar</button>
           </div>
           <input type="file" id="file-open" accept="application/json,.json" hidden />
           <input type="file" id="file-dxf" accept=".dxf,application/dxf,text/plain" hidden />
@@ -105,6 +109,7 @@ class CadApp {
             <div class="chip" id="zoom-chip">Zoom <strong>100%</strong></div>
             <div class="chip" id="ortho-chip">Orto <strong>OFF</strong></div>
             <div class="chip" id="grid-chip">Grade <strong>10</strong></div>
+            <button type="button" class="chip chip-btn" data-action="maximize" title="Maximizar (F11)">Max</button>
           </div>
         </main>
 
@@ -166,7 +171,7 @@ class CadApp {
               <div><kbd>L</kbd> linha · <kbd>R</kbd> retângulo · <kbd>C</kbd> círculo · <kbd>D</kbd> cota</div>
               <div><kbd>B</kbd> bloco · <kbd>V</kbd> selecionar · <kbd>Del</kbd> apagar</div>
               <div><kbd>Ctrl+Z</kbd> desfazer · roda = zoom · meio = pan</div>
-              <div><kbd>Espaço</kbd> pan temporário · <kbd>F8</kbd> orto</div>
+              <div><kbd>Espaço</kbd> pan · <kbd>F8</kbd> orto · <kbd>F11</kbd> maximizar</div>
             </div>
           </section>
         </aside>
@@ -187,16 +192,23 @@ class CadApp {
     this.statusEl = root.querySelector('#status-msg') as HTMLElement
     this.coordsEl = root.querySelector('#coords') as HTMLElement
     this.snapEl = root.querySelector('#snap-label') as HTMLElement
+    this.appEl = root.querySelector('.app') as HTMLElement
     this.layersEl = root.querySelector('#layers') as HTMLElement
     this.blocksEl = root.querySelector('#blocks') as HTMLElement
     this.zoomChip = root.querySelector('#zoom-chip') as HTMLElement
     this.orthoChip = root.querySelector('#ortho-chip') as HTMLElement
     this.gridChip = root.querySelector('#grid-chip') as HTMLElement
+    this.maximizeBtn = root.querySelector('#btn-maximize') as HTMLButtonElement
 
     this.buildTools(root.querySelector('#tools') as HTMLElement)
     this.bindUi(root)
     this.bindCanvas()
     this.bindKeys()
+    document.addEventListener('fullscreenchange', () => {
+      if (!document.fullscreenElement && this.maximized) {
+        this.setMaximized(false, false)
+      }
+    })
 
     this.doc.subscribe(() => {
       this.persist()
@@ -380,6 +392,12 @@ class CadApp {
         return
       }
 
+      if (ev.key === 'F11') {
+        ev.preventDefault()
+        this.setMaximized(!this.maximized, true)
+        return
+      }
+
       if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'z') {
         ev.preventDefault()
         if (ev.shiftKey) this.doc.redo()
@@ -469,6 +487,9 @@ class CadApp {
         this.updateHud()
         this.requestRender()
         this.setStatus('Vista na origem')
+        break
+      case 'maximize':
+        this.setMaximized(!this.maximized, true)
         break
       case 'add-layer':
         this.doc.addLayer()
@@ -595,6 +616,37 @@ class CadApp {
   private setStatus(msg: string) {
     this.status = msg
     this.statusEl.textContent = msg
+  }
+
+  private setMaximized(on: boolean, requestBrowserFullscreen: boolean) {
+    this.maximized = on
+    this.appEl.classList.toggle('maximized', on)
+    if (this.maximizeBtn) {
+      this.maximizeBtn.textContent = on ? 'Restaurar' : 'Maximizar'
+      this.maximizeBtn.title = on
+        ? 'Restaurar painéis (F11 / Esc)'
+        : 'Maximizar área de desenho (F11)'
+    }
+    this.appEl
+      .querySelectorAll<HTMLButtonElement>('[data-action="maximize"].chip-btn')
+      .forEach((btn) => {
+        btn.textContent = on ? 'Rest' : 'Max'
+      })
+
+    if (requestBrowserFullscreen) {
+      if (on && !document.fullscreenElement) {
+        void this.appEl.requestFullscreen?.().catch(() => {
+          /* fullscreen pode ser bloqueado; o layout maximizado já ajuda */
+        })
+      } else if (!on && document.fullscreenElement) {
+        void document.exitFullscreen?.().catch(() => {})
+      }
+    }
+
+    requestAnimationFrame(() => {
+      this.resize()
+      this.setStatus(on ? 'Modo maximizado — F11 ou Esc para restaurar' : 'Painéis restaurados')
+    })
   }
 
   private screenPos(ev: PointerEvent) {

@@ -202,6 +202,38 @@ select {
   font-weight: 500;
 }
 
+.hud .chip-btn {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  color: var(--text);
+}
+
+.hud .chip-btn:hover {
+  border-color: rgba(61, 214, 198, 0.55);
+  color: var(--accent);
+}
+
+.app.maximized {
+  grid-template-columns: 56px 1fr;
+  grid-template-rows: 0 1fr 34px;
+  grid-template-areas:
+    'top top'
+    'tools stage'
+    'status status';
+}
+
+.app.maximized .topbar {
+  display: none;
+}
+
+.app.maximized .side {
+  display: none;
+}
+
+.app.maximized .tools {
+  background: rgba(11, 15, 19, 0.72);
+}
+
 .side {
   grid-area: side;
   border-left: 1px solid var(--border);

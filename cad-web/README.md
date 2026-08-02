@@ -34,6 +34,7 @@ npm run preview  # servir o build
 | `M` | Medir |
 | `H` | Pan |
 | `F8` | Orto |
+| `F11` | Maximizar / restaurar área de desenho |
 | `Ctrl+Z` / `Ctrl+Y` | Desfazer / refazer |
 | Roda do mouse | Zoom |
 | Botão do meio / Espaço | Pan |
