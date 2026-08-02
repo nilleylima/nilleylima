@@ -49,9 +49,19 @@ npm run preview  # servir o build
 - Persistência automática no `localStorage`
 - Abrir / salvar JSON do desenho
 - Importar / exportar DXF (LINE, CIRCLE, ARC, LWPOLYLINE)
+- **Importar DWG nativo** no navegador via LibreDWG (WebAssembly)
 - Exportar PNG
+
+## DWG
+
+| Operação | Status |
+|----------|--------|
+| Importar `.dwg` | Sim (LibreDWG WASM) — LINE, CIRCLE, ARC, LWPOLYLINE, DIMENSION, INSERT/blocos |
+| Exportar `.dwg` | Não no build padrão — use **Exportar DXF** |
+
+O motor DWG (`@mlightcad/libredwg-web`) é **GPL-3.0**. Ao distribuir o app com essa dependência, a licença GPL se aplica ao conjunto.
 
 ## Escopo
 
-CAD web 2D com desenho técnico, cotas, blocos e troca via DXF.  
-**DWG** binário e **3D** ainda não estão no escopo — para AutoCAD, exporte/importe DXF.
+CAD web 2D com desenho técnico, cotas, blocos, DXF e importação DWG.  
+**3D** e **exportação DWG** nativa ficam para etapas futuras.

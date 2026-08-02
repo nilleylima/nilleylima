@@ -1,4 +1,5 @@
 import './style.css'
+import { importDwg, isDwgSupportedMessage } from './io/dwg'
 import { exportDxf, importDxf } from './io/dxf'
 import { CadDocument } from './model/document'
 import { expandEntities } from './model/geometry'
@@ -83,6 +84,7 @@ class CadApp {
             <button type="button" data-action="open">Abrir</button>
             <button type="button" data-action="save">Salvar JSON</button>
             <button type="button" data-action="import-dxf">Importar DXF</button>
+            <button type="button" data-action="import-dwg">Importar DWG</button>
             <button type="button" data-action="export-dxf">Exportar DXF</button>
             <button type="button" data-action="export-png">Exportar PNG</button>
             <button type="button" data-action="undo">Desfazer</button>
@@ -92,6 +94,7 @@ class CadApp {
           </div>
           <input type="file" id="file-open" accept="application/json,.json" hidden />
           <input type="file" id="file-dxf" accept=".dxf,application/dxf,text/plain" hidden />
+          <input type="file" id="file-dwg" accept=".dwg,application/acad,application/x-dwg" hidden />
         </header>
 
         <aside class="tools" id="tools"></aside>
@@ -153,7 +156,7 @@ class CadApp {
             </div>
             <div class="help" style="margin-top:8px;">
               Selecione objetos (V), depois <strong>Criar da seleção</strong>.
-              DWG binário não é suportado — use DXF.
+              DWG: importação nativa (LibreDWG/WASM). Exportação: use DXF.
             </div>
           </section>
 
@@ -287,7 +290,7 @@ class CadApp {
       const f = dxfFile.files?.[0]
       if (!f) return
       if (f.name.toLowerCase().endsWith('.dwg')) {
-        this.setStatus('DWG não suportado — exporte como DXF no AutoCAD')
+        this.setStatus('Use Importar DWG para arquivos .dwg')
         dxfFile.value = ''
         return
       }
@@ -302,6 +305,30 @@ class CadApp {
         this.setStatus(err instanceof Error ? err.message : 'Falha ao importar DXF')
       }
       dxfFile.value = ''
+    })
+
+    const dwgFile = root.querySelector('#file-dwg') as HTMLInputElement
+    dwgFile.addEventListener('change', async () => {
+      const f = dwgFile.files?.[0]
+      if (!f) return
+      this.setStatus('Lendo DWG…')
+      try {
+        const buffer = await f.arrayBuffer()
+        const result = await importDwg(buffer)
+        this.doc.replaceDocument(result.document)
+        this.selectedIds.clear()
+        this.selectionBuffer = []
+        this.renderBlocks()
+        this.setStatus(
+          `DWG importado: ${f.name} — ${result.stats.imported}/${result.stats.total} entidades` +
+            (result.stats.skipped ? ` (${result.stats.skipped} ignoradas)` : ''),
+        )
+        this.fitView()
+      } catch (err) {
+        console.error(err)
+        this.setStatus(err instanceof Error ? err.message : 'Falha ao importar DWG')
+      }
+      dwgFile.value = ''
     })
   }
 
@@ -415,6 +442,10 @@ class CadApp {
         break
       case 'import-dxf':
         (document.querySelector('#file-dxf') as HTMLInputElement).click()
+        break
+      case 'import-dwg':
+        this.setStatus(isDwgSupportedMessage())
+        ;(document.querySelector('#file-dwg') as HTMLInputElement).click()
         break
       case 'export-dxf':
         this.saveDxf()
