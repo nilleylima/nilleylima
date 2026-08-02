@@ -141,6 +141,10 @@ class CadApp {
           <section>
             <h2>Blocos</h2>
             <div class="layers" id="blocks"></div>
+            <div class="field">
+              <label for="block-name">Nome do novo bloco</label>
+              <input id="block-name" type="text" value="Bloco 1" />
+            </div>
             <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
               <button type="button" class="ghost" data-action="create-block">Criar da seleção</button>
               <button type="button" class="ghost" data-action="insert-block">Inserir</button>
@@ -425,14 +429,16 @@ class CadApp {
           this.setStatus('Selecione objetos antes de criar um bloco')
           break
         }
-        const name = prompt('Nome do bloco', `Bloco ${this.doc.data.blocks.length + 1}`)
-        if (name === null) break
-        const block = this.doc.createBlockFromSelection([...this.selectedIds], name.trim() || undefined)
+        const nameInput = document.querySelector('#block-name') as HTMLInputElement | null
+        const fallback = `Bloco ${this.doc.data.blocks.length + 1}`
+        const name = (nameInput?.value.trim() || fallback)
+        const block = this.doc.createBlockFromSelection([...this.selectedIds], name)
         if (!block) {
           this.setStatus('Não foi possível criar o bloco (evite só inserções)')
           break
         }
         this.selectedIds.clear()
+        if (nameInput) nameInput.value = `Bloco ${this.doc.data.blocks.length + 1}`
         this.renderBlocks()
         this.setStatus(`Bloco "${block.name}" criado`)
         break
