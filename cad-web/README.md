@@ -28,6 +28,8 @@ npm run preview  # servir o build
 | `R` | Retângulo |
 | `C` | Círculo |
 | `A` | Arco |
+| `D` | Cota linear |
+| `B` | Inserir bloco |
 | `E` | Apagar |
 | `M` | Medir |
 | `H` | Pan |
@@ -40,12 +42,16 @@ npm run preview  # servir o build
 
 - Grade e eixos com navegação fluida
 - Snaps: ponta, meio, centro, interseção, grade e próximo
+- Cotas lineares com texto e setas
+- Blocos: criar da seleção e reinserir
 - Camadas (visível / travada / cor)
 - Histórico undo/redo
 - Persistência automática no `localStorage`
 - Abrir / salvar JSON do desenho
+- Importar / exportar DXF (LINE, CIRCLE, ARC, LWPOLYLINE)
 - Exportar PNG
 
 ## Escopo
 
-Isto é um CAD web 2D focado em desenho técnico básico. Não cobre DWG nativo, 3D, blocos dinâmicos, cotas anotativas ou o ecossistema completo do AutoCAD — mas serve como base sólida para evoluir nessa direção.
+CAD web 2D com desenho técnico, cotas, blocos e troca via DXF.  
+**DWG** binário e **3D** ainda não estão no escopo — para AutoCAD, exporte/importe DXF.

@@ -1,4 +1,6 @@
 import type { CadDocument } from '../model/document'
+import { explodeBlockInsert } from '../model/geometry'
+import { dimensionLayout, formatLength } from '../model/math'
 import type { Entity, Layer, Vec2 } from '../model/types'
 import type { SnapResult } from '../model/snap'
 import type { Viewport } from './viewport'
@@ -9,6 +11,7 @@ export type PreviewPrimitive =
   | { type: 'circle'; center: Vec2; radius: number; color?: string }
   | { type: 'arc'; center: Vec2; radius: number; startAngle: number; endAngle: number; color?: string }
   | { type: 'polyline'; points: Vec2[]; closed?: boolean; color?: string }
+  | { type: 'dimension'; a: Vec2; b: Vec2; offset: number; color?: string }
   | { type: 'crosshair'; point: Vec2; color?: string }
   | { type: 'text'; point: Vec2; text: string; color?: string }
 
@@ -21,6 +24,7 @@ export type RenderState = {
   cursor: Vec2 | null
   showGrid: boolean
   gridSize: number
+  units?: 'mm' | 'cm' | 'm'
 }
 
 export class Renderer {
@@ -48,16 +52,17 @@ export class Renderer {
     this.drawAxes()
 
     const layerMap = new Map(doc.data.layers.map((l) => [l.id, l]))
+    const units = state.units ?? 'mm'
     for (const entity of doc.data.entities) {
       if (state.hiddenIds?.has(entity.id)) continue
       const layer = layerMap.get(entity.layerId)
       if (!layer || !layer.visible) continue
       const selected = state.selectedIds.has(entity.id)
       const hovered = state.hoverId === entity.id
-      this.drawEntity(entity, layer, selected, hovered)
+      this.drawEntity(doc, entity, layer, selected, hovered, units)
     }
 
-    for (const p of state.preview) this.drawPreview(p)
+    for (const p of state.preview) this.drawPreview(p, units)
     if (state.snap) this.drawSnap(state.snap)
     if (state.cursor) this.drawCursor(state.cursor)
   }
@@ -142,11 +147,41 @@ export class Renderer {
   }
 
   private drawEntity(
+    doc: CadDocument,
     entity: Entity,
     layer: Layer,
     selected: boolean,
     hovered: boolean,
+    units: 'mm' | 'cm' | 'm',
   ) {
+    if (entity.type === 'block') {
+      const def = doc.data.blocks.find((b) => b.id === entity.blockId)
+      if (def) {
+        for (const child of explodeBlockInsert(entity, def)) {
+          this.drawEntity(doc, child, layer, selected, hovered, units)
+        }
+      }
+      if (selected) {
+        this.world()
+        const { ctx, viewport } = this
+        const size = 6 / viewport.scale
+        ctx.fillStyle = '#ffd166'
+        ctx.fillRect(
+          entity.position.x - size / 2,
+          entity.position.y - size / 2,
+          size,
+          size,
+        )
+      }
+      return
+    }
+
+    if (entity.type === 'dimension') {
+      this.drawDimension(entity, layer, selected, hovered, units)
+      if (selected) this.drawHandles(entity)
+      return
+    }
+
     const { ctx, viewport } = this
     this.world()
     ctx.strokeStyle = this.strokeStyle(layer, entity, selected, hovered)
@@ -194,12 +229,66 @@ export class Renderer {
     if (selected) this.drawHandles(entity)
   }
 
+  private drawDimension(
+    entity: Extract<Entity, { type: 'dimension' }>,
+    layer: Layer,
+    selected: boolean,
+    hovered: boolean,
+    units: 'mm' | 'cm' | 'm',
+  ) {
+    const { ctx, viewport } = this
+    const layout = dimensionLayout(entity)
+    const color = this.strokeStyle(layer, entity, selected, hovered)
+    this.world()
+    ctx.strokeStyle = color
+    ctx.lineWidth = 1.25 / viewport.scale
+    ctx.beginPath()
+    ctx.moveTo(layout.a.x, layout.a.y)
+    ctx.lineTo(layout.d1.x, layout.d1.y)
+    ctx.moveTo(layout.b.x, layout.b.y)
+    ctx.lineTo(layout.d2.x, layout.d2.y)
+    ctx.moveTo(layout.d1.x, layout.d1.y)
+    ctx.lineTo(layout.d2.x, layout.d2.y)
+    ctx.stroke()
+
+    // arrowheads
+    const dir = {
+      x: (layout.d2.x - layout.d1.x) / Math.max(layout.length, 1e-6),
+      y: (layout.d2.y - layout.d1.y) / Math.max(layout.length, 1e-6),
+    }
+    const ah = 6 / viewport.scale
+    this.drawArrow(layout.d1, dir, ah, color)
+    this.drawArrow(layout.d2, { x: -dir.x, y: -dir.y }, ah, color)
+
+    this.screen()
+    const s = viewport.worldToScreen(layout.text.x, layout.text.y)
+    ctx.fillStyle = color
+    ctx.font = '12px "IBM Plex Mono", monospace'
+    ctx.textAlign = 'center'
+    ctx.fillText(formatLength(layout.length, units), s.x, s.y - 6)
+    ctx.textAlign = 'left'
+  }
+
+  private drawArrow(tip: Vec2, dir: Vec2, size: number, color: string) {
+    const { ctx } = this
+    const n = { x: -dir.y, y: dir.x }
+    ctx.fillStyle = color
+    ctx.beginPath()
+    ctx.moveTo(tip.x, tip.y)
+    ctx.lineTo(tip.x - dir.x * size + n.x * size * 0.35, tip.y - dir.y * size + n.y * size * 0.35)
+    ctx.lineTo(tip.x - dir.x * size - n.x * size * 0.35, tip.y - dir.y * size - n.y * size * 0.35)
+    ctx.closePath()
+    ctx.fill()
+  }
+
   private drawHandles(entity: Entity) {
     const { ctx, viewport } = this
+    this.world()
     const size = 5 / viewport.scale
     const points: Vec2[] = []
     switch (entity.type) {
       case 'line':
+      case 'dimension':
         points.push(entity.a, entity.b)
         break
       case 'rect':
@@ -218,6 +307,9 @@ export class Renderer {
       case 'polyline':
         points.push(...entity.points)
         break
+      case 'block':
+        points.push(entity.position)
+        break
     }
     ctx.fillStyle = '#ffd166'
     for (const p of points) {
@@ -225,7 +317,7 @@ export class Renderer {
     }
   }
 
-  private drawPreview(p: PreviewPrimitive) {
+  private drawPreview(p: PreviewPrimitive, units: 'mm' | 'cm' | 'm' = 'mm') {
     const { ctx, viewport } = this
     const color = p.color ?? '#7fd4ff'
     if (p.type === 'text') {
@@ -247,6 +339,24 @@ export class Renderer {
       ctx.moveTo(s.x, s.y - 10)
       ctx.lineTo(s.x, s.y + 10)
       ctx.stroke()
+      return
+    }
+    if (p.type === 'dimension') {
+      this.drawDimension(
+        {
+          id: 'preview',
+          type: 'dimension',
+          layerId: '0',
+          a: p.a,
+          b: p.b,
+          offset: p.offset,
+          color,
+        },
+        { id: '0', name: '0', color, visible: true, locked: false },
+        false,
+        false,
+        units,
+      )
       return
     }
 

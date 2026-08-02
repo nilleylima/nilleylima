@@ -1,4 +1,11 @@
-import type { DocumentData, Entity, Layer } from './types'
+import type {
+  BlockDefinition,
+  DocumentData,
+  Entity,
+  Layer,
+  PrimitiveEntity,
+} from './types'
+import { centroidOfEntities, translateEntity } from './geometry'
 import { uid } from './math'
 
 const DEFAULT_COLORS = [
@@ -19,10 +26,36 @@ export function createDefaultDocument(): DocumentData {
     locked: false,
   }
   return {
-    version: 1,
+    version: 2,
     layers: [layer0],
     entities: [],
+    blocks: [],
     activeLayerId: layer0.id,
+    activeBlockId: null,
+  }
+}
+
+function normalizeDocument(raw: {
+  layers?: Layer[]
+  entities?: Entity[]
+  blocks?: BlockDefinition[]
+  activeLayerId?: string
+  activeBlockId?: string | null
+}): DocumentData {
+  const layers = Array.isArray(raw.layers) ? raw.layers : []
+  const entities = Array.isArray(raw.entities) ? raw.entities : []
+  const blocks = Array.isArray(raw.blocks) ? raw.blocks : []
+  const activeLayerId =
+    raw.activeLayerId && layers.some((l) => l.id === raw.activeLayerId)
+      ? raw.activeLayerId
+      : layers[0]?.id ?? 'layer_0'
+  return {
+    version: 2,
+    layers: layers.length ? layers : createDefaultDocument().layers,
+    entities,
+    blocks,
+    activeLayerId,
+    activeBlockId: raw.activeBlockId ?? blocks[0]?.id ?? null,
   }
 }
 
@@ -33,7 +66,7 @@ export class CadDocument {
   private listeners = new Set<() => void>()
 
   constructor(data: DocumentData = createDefaultDocument()) {
-    this.data = structuredClone(data)
+    this.data = structuredClone(normalizeDocument(data))
   }
 
   subscribe(fn: () => void): () => void {
@@ -94,9 +127,20 @@ export class CadDocument {
     )
   }
 
+  get activeBlock(): BlockDefinition | null {
+    if (!this.data.activeBlockId) return null
+    return this.data.blocks.find((b) => b.id === this.data.activeBlockId) ?? null
+  }
+
   setActiveLayer(id: string) {
     if (!this.data.layers.some((l) => l.id === id)) return
     this.data.activeLayerId = id
+    this.notify()
+  }
+
+  setActiveBlock(id: string | null) {
+    if (id && !this.data.blocks.some((b) => b.id === id)) return
+    this.data.activeBlockId = id
     this.notify()
   }
 
@@ -172,8 +216,66 @@ export class CadDocument {
     })
   }
 
+  createBlockFromSelection(ids: string[], name?: string): BlockDefinition | null {
+    const set = new Set(ids)
+    const selected = this.data.entities.filter((e) => set.has(e.id))
+    if (!selected.length) return null
+
+    const primitives: PrimitiveEntity[] = []
+    for (const e of selected) {
+      if (e.type === 'block') continue
+      primitives.push(structuredClone(e))
+    }
+    if (!primitives.length) return null
+
+    const base = centroidOfEntities(primitives)
+    const local = primitives.map((e) => {
+      const moved = translateEntity(e, -base.x, -base.y) as PrimitiveEntity
+      return { ...moved, id: uid('be') }
+    })
+
+    const block: BlockDefinition = {
+      id: uid('block'),
+      name: name ?? `Bloco ${this.data.blocks.length + 1}`,
+      base: { x: 0, y: 0 },
+      entities: local,
+    }
+
+    this.mutate((d) => {
+      d.blocks.push(block)
+      d.activeBlockId = block.id
+      d.entities = d.entities.filter((e) => !set.has(e.id))
+      d.entities.push({
+        id: uid('ins'),
+        type: 'block',
+        layerId: this.activeLayer.id,
+        blockId: block.id,
+        position: base,
+        rotation: 0,
+        scale: 1,
+      })
+    })
+
+    return block
+  }
+
+  deleteBlock(id: string) {
+    this.mutate((d) => {
+      d.blocks = d.blocks.filter((b) => b.id !== id)
+      d.entities = d.entities.filter((e) => !(e.type === 'block' && e.blockId === id))
+      if (d.activeBlockId === id) d.activeBlockId = d.blocks[0]?.id ?? null
+    })
+  }
+
+  renameBlock(id: string, name: string) {
+    this.mutate((d) => {
+      const block = d.blocks.find((b) => b.id === id)
+      if (block) block.name = name
+    })
+  }
+
   replaceDocument(data: DocumentData) {
-    this.commit(structuredClone(data))
+    this.commit(normalizeDocument(structuredClone(data)))
   }
 
   toJSON(): DocumentData {
@@ -182,10 +284,30 @@ export class CadDocument {
 
   static fromJSON(raw: unknown): CadDocument {
     if (!raw || typeof raw !== 'object') throw new Error('Arquivo inválido')
-    const data = raw as DocumentData
-    if (data.version !== 1 || !Array.isArray(data.layers) || !Array.isArray(data.entities)) {
+    const data = raw as {
+      version?: number
+      layers?: unknown
+      entities?: unknown
+      blocks?: BlockDefinition[]
+      activeLayerId?: string
+      activeBlockId?: string | null
+    }
+    if (
+      (data.version !== 1 && data.version !== 2) ||
+      !Array.isArray(data.layers) ||
+      !Array.isArray(data.entities)
+    ) {
       throw new Error('Formato de desenho não suportado')
     }
-    return new CadDocument(data)
+    return new CadDocument(
+      normalizeDocument({
+        version: data.version === 1 ? 1 : 2,
+        layers: data.layers as DocumentData['layers'],
+        entities: data.entities as DocumentData['entities'],
+        blocks: data.blocks,
+        activeLayerId: data.activeLayerId ?? 'layer_0',
+        activeBlockId: data.activeBlockId,
+      } as DocumentData & { version: 1 | 2 }),
+    )
   }
 }

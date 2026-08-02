@@ -1,5 +1,7 @@
 import './style.css'
+import { exportDxf, importDxf } from './io/dxf'
 import { CadDocument } from './model/document'
+import { expandEntities } from './model/geometry'
 import { boundsOfEntity } from './model/math'
 import { resolveSnap } from './model/snap'
 import type { AppSettings, ToolId, Vec2 } from './model/types'
@@ -14,12 +16,14 @@ const TOOL_META: Array<{ id: ToolId; label: string; title: string; key: string }
   { id: 'rect', label: 'RET', title: 'Retângulo (R)', key: 'r' },
   { id: 'circle', label: 'CIR', title: 'Círculo (C)', key: 'c' },
   { id: 'arc', label: 'ARC', title: 'Arco (A)', key: 'a' },
+  { id: 'dimension', label: 'COT', title: 'Cota (D)', key: 'd' },
+  { id: 'block', label: 'BLK', title: 'Inserir bloco (B)', key: 'b' },
   { id: 'erase', label: 'ERA', title: 'Apagar (E)', key: 'e' },
   { id: 'measure', label: 'MED', title: 'Medir (M)', key: 'm' },
   { id: 'pan', label: 'PAN', title: 'Pan (H)', key: 'h' },
 ]
 
-const STORAGE_KEY = 'drafter-cad-v1'
+const STORAGE_KEY = 'drafter-cad-v2'
 
 class CadApp {
   doc = new CadDocument()
@@ -54,6 +58,7 @@ class CadApp {
   private coordsEl!: HTMLElement
   private snapEl!: HTMLElement
   private layersEl!: HTMLElement
+  private blocksEl!: HTMLElement
   private zoomChip!: HTMLElement
   private orthoChip!: HTMLElement
   private gridChip!: HTMLElement
@@ -75,6 +80,8 @@ class CadApp {
             <button type="button" data-action="new">Novo</button>
             <button type="button" data-action="open">Abrir</button>
             <button type="button" data-action="save">Salvar JSON</button>
+            <button type="button" data-action="import-dxf">Importar DXF</button>
+            <button type="button" data-action="export-dxf">Exportar DXF</button>
             <button type="button" data-action="export-png">Exportar PNG</button>
             <button type="button" data-action="undo">Desfazer</button>
             <button type="button" data-action="redo">Refazer</button>
@@ -82,6 +89,7 @@ class CadApp {
             <button type="button" data-action="reset">Origem</button>
           </div>
           <input type="file" id="file-open" accept="application/json,.json" hidden />
+          <input type="file" id="file-dxf" accept=".dxf,application/dxf,text/plain" hidden />
         </header>
 
         <aside class="tools" id="tools"></aside>
@@ -131,10 +139,23 @@ class CadApp {
           </section>
 
           <section>
+            <h2>Blocos</h2>
+            <div class="layers" id="blocks"></div>
+            <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+              <button type="button" class="ghost" data-action="create-block">Criar da seleção</button>
+              <button type="button" class="ghost" data-action="insert-block">Inserir</button>
+            </div>
+            <div class="help" style="margin-top:8px;">
+              Selecione objetos (V), depois <strong>Criar da seleção</strong>.
+              DWG binário não é suportado — use DXF.
+            </div>
+          </section>
+
+          <section>
             <h2>Atalhos</h2>
             <div class="help">
-              <div><kbd>L</kbd> linha · <kbd>R</kbd> retângulo · <kbd>C</kbd> círculo</div>
-              <div><kbd>V</kbd> selecionar · <kbd>Del</kbd> apagar · <kbd>Esc</kbd> cancelar</div>
+              <div><kbd>L</kbd> linha · <kbd>R</kbd> retângulo · <kbd>C</kbd> círculo · <kbd>D</kbd> cota</div>
+              <div><kbd>B</kbd> bloco · <kbd>V</kbd> selecionar · <kbd>Del</kbd> apagar</div>
               <div><kbd>Ctrl+Z</kbd> desfazer · roda = zoom · meio = pan</div>
               <div><kbd>Espaço</kbd> pan temporário · <kbd>F8</kbd> orto</div>
             </div>
@@ -158,6 +179,7 @@ class CadApp {
     this.coordsEl = root.querySelector('#coords') as HTMLElement
     this.snapEl = root.querySelector('#snap-label') as HTMLElement
     this.layersEl = root.querySelector('#layers') as HTMLElement
+    this.blocksEl = root.querySelector('#blocks') as HTMLElement
     this.zoomChip = root.querySelector('#zoom-chip') as HTMLElement
     this.orthoChip = root.querySelector('#ortho-chip') as HTMLElement
     this.gridChip = root.querySelector('#grid-chip') as HTMLElement
@@ -170,6 +192,7 @@ class CadApp {
     this.doc.subscribe(() => {
       this.persist()
       this.renderLayers()
+      this.renderBlocks()
       this.requestRender()
     })
 
@@ -177,6 +200,7 @@ class CadApp {
     this.viewport.resetView()
     this.setTool('line')
     this.renderLayers()
+    this.renderBlocks()
     this.syncToggles(root)
     this.resize()
     window.addEventListener('resize', () => this.resize())
@@ -238,6 +262,28 @@ class CadApp {
         this.setStatus(err instanceof Error ? err.message : 'Falha ao abrir')
       }
       file.value = ''
+    })
+
+    const dxfFile = root.querySelector('#file-dxf') as HTMLInputElement
+    dxfFile.addEventListener('change', async () => {
+      const f = dxfFile.files?.[0]
+      if (!f) return
+      if (f.name.toLowerCase().endsWith('.dwg')) {
+        this.setStatus('DWG não suportado — exporte como DXF no AutoCAD')
+        dxfFile.value = ''
+        return
+      }
+      try {
+        const text = await f.text()
+        const data = importDxf(text)
+        this.doc.replaceDocument(data)
+        this.selectedIds.clear()
+        this.setStatus(`DXF importado: ${f.name} (${data.entities.length} entidades)`)
+        this.fitView()
+      } catch (err) {
+        this.setStatus(err instanceof Error ? err.message : 'Falha ao importar DXF')
+      }
+      dxfFile.value = ''
     })
   }
 
@@ -344,6 +390,12 @@ class CadApp {
       case 'save':
         this.saveJson()
         break
+      case 'import-dxf':
+        (document.querySelector('#file-dxf') as HTMLInputElement).click()
+        break
+      case 'export-dxf':
+        this.saveDxf()
+        break
       case 'export-png':
         this.exportPng()
         break
@@ -367,6 +419,33 @@ class CadApp {
       case 'add-layer':
         this.doc.addLayer()
         this.setStatus('Camada adicionada')
+        break
+      case 'create-block': {
+        if (!this.selectedIds.size) {
+          this.setStatus('Selecione objetos antes de criar um bloco')
+          break
+        }
+        const name = prompt('Nome do bloco', `Bloco ${this.doc.data.blocks.length + 1}`)
+        if (name === null) break
+        const block = this.doc.createBlockFromSelection([...this.selectedIds], name.trim() || undefined)
+        if (!block) {
+          this.setStatus('Não foi possível criar o bloco (evite só inserções)')
+          break
+        }
+        this.selectedIds.clear()
+        this.renderBlocks()
+        this.setStatus(`Bloco "${block.name}" criado`)
+        break
+      }
+      case 'insert-block':
+        if (!this.doc.activeBlock && this.doc.data.blocks[0]) {
+          this.doc.setActiveBlock(this.doc.data.blocks[0].id)
+        }
+        if (!this.doc.activeBlock) {
+          this.setStatus('Nenhum bloco disponível')
+          break
+        }
+        this.setTool('block')
         break
     }
   }
@@ -460,10 +539,13 @@ class CadApp {
     const screen = this.screenPos(ev)
     const world = this.viewport.screenToWorld(screen.x, screen.y)
     const tol = 12 / this.viewport.scale
-    const entities = this.doc.data.entities.filter((e) => {
-      const layer = this.doc.data.layers.find((l) => l.id === e.layerId)
-      return layer?.visible
-    })
+    const entities = expandEntities(
+      this.doc.data.entities.filter((e) => {
+        const layer = this.doc.data.layers.find((l) => l.id === e.layerId)
+        return layer?.visible
+      }),
+      this.doc.data.blocks,
+    )
     const snap = resolveSnap(
       world,
       entities,
@@ -558,14 +640,15 @@ class CadApp {
   }
 
   private fitView() {
-    if (!this.doc.data.entities.length) {
+    const expanded = expandEntities(this.doc.data.entities, this.doc.data.blocks)
+    if (!expanded.length) {
       this.viewport.resetView()
     } else {
       let minX = Infinity
       let minY = Infinity
       let maxX = -Infinity
       let maxY = -Infinity
-      for (const e of this.doc.data.entities) {
+      for (const e of expanded) {
         const b = boundsOfEntity(e)
         if (!b) continue
         minX = Math.min(minX, b.min.x)
@@ -613,6 +696,32 @@ class CadApp {
     }
   }
 
+  private renderBlocks() {
+    this.blocksEl.innerHTML = ''
+    if (!this.doc.data.blocks.length) {
+      const empty = document.createElement('div')
+      empty.className = 'help'
+      empty.textContent = 'Nenhum bloco ainda.'
+      this.blocksEl.appendChild(empty)
+      return
+    }
+    for (const block of this.doc.data.blocks) {
+      const row = document.createElement('div')
+      row.className = `layer-row${block.id === this.doc.data.activeBlockId ? ' active' : ''}`
+      row.innerHTML = `
+        <span class="swatch" style="background:#3dd6c6"></span>
+        <span class="name" style="grid-column: 2 / -1">${block.name} (${block.entities.length})</span>
+      `
+      row.style.gridTemplateColumns = '18px 1fr'
+      row.addEventListener('click', () => {
+        this.doc.setActiveBlock(block.id)
+        this.renderBlocks()
+        this.setStatus(`Bloco ativo: ${block.name}`)
+      })
+      this.blocksEl.appendChild(row)
+    }
+  }
+
   private saveJson() {
     const blob = new Blob([JSON.stringify(this.doc.toJSON(), null, 2)], {
       type: 'application/json',
@@ -623,6 +732,18 @@ class CadApp {
     a.click()
     URL.revokeObjectURL(a.href)
     this.setStatus('JSON salvo')
+  }
+
+  private saveDxf() {
+    const blob = new Blob([exportDxf(this.doc.toJSON())], {
+      type: 'application/dxf',
+    })
+    const a = document.createElement('a')
+    a.href = URL.createObjectURL(blob)
+    a.download = `desenho-${new Date().toISOString().slice(0, 10)}.dxf`
+    a.click()
+    URL.revokeObjectURL(a.href)
+    this.setStatus('DXF exportado')
   }
 
   private exportPng() {
@@ -650,6 +771,7 @@ class CadApp {
       this.doc.subscribe(() => {
         this.persist()
         this.renderLayers()
+        this.renderBlocks()
         this.requestRender()
       })
     } catch {
@@ -670,13 +792,15 @@ class CadApp {
   }
 
   private paint() {
+    const visible = this.doc.data.entities.filter((e) => {
+      const layer = this.doc.data.layers.find((l) => l.id === e.layerId)
+      return layer?.visible
+    })
+    const snapEntities = expandEntities(visible, this.doc.data.blocks)
     const snap = this.cursor
       ? resolveSnap(
           this.cursor,
-          this.doc.data.entities.filter((e) => {
-            const layer = this.doc.data.layers.find((l) => l.id === e.layerId)
-            return layer?.visible
-          }),
+          snapEntities,
           this.settings.snap,
           12 / this.viewport.scale,
           this.settings.gridSize,
@@ -693,6 +817,7 @@ class CadApp {
       cursor: this.cursor,
       showGrid: this.settings.showGrid,
       gridSize: this.settings.gridSize,
+      units: this.settings.units,
     })
     this.updateHud()
   }

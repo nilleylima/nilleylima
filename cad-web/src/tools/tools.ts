@@ -1,9 +1,14 @@
 import type { CadDocument } from '../model/document'
 import {
+  explodeBlockInsert,
+  translateEntity,
+} from '../model/geometry'
+import {
   angle,
   dist,
   formatLength,
   hitTestEntity,
+  offsetFromPoint,
   snapOrtho,
   toDeg,
   uid,
@@ -67,22 +72,7 @@ function visibleUnlockedEntities(doc: CadDocument): Entity[] {
   })
 }
 
-function translateEntity(entity: Entity, dx: number, dy: number): Entity {
-  const t = (p: Vec2): Vec2 => ({ x: p.x + dx, y: p.y + dy })
-  switch (entity.type) {
-    case 'line':
-      return { ...entity, a: t(entity.a), b: t(entity.b) }
-    case 'rect':
-      return { ...entity, a: t(entity.a), b: t(entity.b) }
-    case 'circle':
-    case 'arc':
-      return { ...entity, center: t(entity.center) }
-    case 'polyline':
-      return { ...entity, points: entity.points.map(t) }
-  }
-}
-
-function entityToPreview(entity: Entity, color: string): PreviewPrimitive[] {
+function entityToPreview(entity: Entity, color: string, doc?: CadDocument): PreviewPrimitive[] {
   switch (entity.type) {
     case 'line':
       return [{ type: 'line', a: entity.a, b: entity.b, color }]
@@ -106,7 +96,30 @@ function entityToPreview(entity: Entity, color: string): PreviewPrimitive[] {
         closed: entity.closed,
         color,
       }]
+    case 'dimension':
+      return [{
+        type: 'dimension',
+        a: entity.a,
+        b: entity.b,
+        offset: entity.offset,
+        color,
+      }]
+    case 'block': {
+      if (!doc) return [{ type: 'crosshair', point: entity.position, color }]
+      const def = doc.data.blocks.find((b) => b.id === entity.blockId)
+      if (!def) return [{ type: 'crosshair', point: entity.position, color }]
+      return explodeBlockInsert(entity, def).flatMap((e) => entityToPreview(e, color))
+    }
   }
+}
+
+function hitEntity(doc: CadDocument, entity: Entity, point: Vec2, tol: number): boolean {
+  if (entity.type === 'block') {
+    const def = doc.data.blocks.find((b) => b.id === entity.blockId)
+    if (!def) return hitTestEntity(entity, point, tol)
+    return explodeBlockInsert(entity, def).some((e) => hitTestEntity(e, point, tol))
+  }
+  return hitTestEntity(entity, point, tol)
 }
 
 export class SelectTool implements Tool {
@@ -115,15 +128,21 @@ export class SelectTool implements Tool {
   private start: Vec2 | null = null
   private delta: Vec2 = { x: 0, y: 0 }
   private originals = new Map<string, Entity>()
+  private doc: CadDocument | null = null
+
+  onActivate(ctx: ToolContext) {
+    this.doc = ctx.doc
+  }
 
   onPointerDown(ctx: ToolContext, p: PointerInfo) {
+    this.doc = ctx.doc
     const layerMap = new Map(ctx.doc.data.layers.map((l) => [l.id, l]))
     const hitTol = 8
     let hit: Entity | null = null
     for (const e of [...ctx.doc.data.entities].reverse()) {
       const layer = layerMap.get(e.layerId)
       if (!layer?.visible) continue
-      if (hitTestEntity(e, p.world, hitTol)) {
+      if (hitEntity(ctx.doc, e, p.world, hitTol)) {
         hit = e
         break
       }
@@ -208,7 +227,7 @@ export class SelectTool implements Tool {
     const preview: PreviewPrimitive[] = []
     for (const original of this.originals.values()) {
       const moved = translateEntity(original, this.delta.x, this.delta.y)
-      preview.push(...entityToPreview(moved, '#ffd166'))
+      preview.push(...entityToPreview(moved, '#ffd166', this.doc ?? undefined))
     }
     return preview
   }
@@ -561,6 +580,122 @@ export class ArcTool implements Tool {
   }
 }
 
+export class DimensionTool implements Tool {
+  id: ToolId = 'dimension'
+  private a: Vec2 | null = null
+  private b: Vec2 | null = null
+  private current: Vec2 | null = null
+
+  onActivate(ctx: ToolContext) {
+    ctx.setStatus('Cota: ponto 1')
+  }
+
+  onPointerDown(ctx: ToolContext, p: PointerInfo) {
+    if (!this.a) {
+      this.a = p.snapped
+      this.current = p.snapped
+      ctx.setStatus('Cota: ponto 2')
+      return
+    }
+    if (!this.b) {
+      this.b = applyOrtho(this.a, p.snapped, ctx.settings, p.shiftKey)
+      this.current = this.b
+      ctx.setStatus('Cota: posicione a linha de cota')
+      return
+    }
+    const offset = offsetFromPoint(this.a, this.b, p.snapped)
+    ctx.doc.addEntity({
+      id: uid('dim'),
+      type: 'dimension',
+      layerId: ctx.doc.activeLayer.id,
+      a: this.a,
+      b: this.b,
+      offset,
+    })
+    this.a = null
+    this.b = null
+    this.current = null
+    ctx.setStatus('Cota criada')
+  }
+
+  onPointerMove(ctx: ToolContext, p: PointerInfo) {
+    if (this.a && !this.b) {
+      this.current = applyOrtho(this.a, p.snapped, ctx.settings, p.shiftKey)
+      ctx.setStatus(
+        `Cota L=${formatLength(dist(this.a, this.current), ctx.settings.units)}`,
+      )
+      return
+    }
+    this.current = p.snapped
+  }
+
+  getPreview(): PreviewPrimitive[] {
+    if (!this.a || !this.current) return []
+    if (!this.b) {
+      return [{ type: 'line', a: this.a, b: this.current, color: '#f0b429' }]
+    }
+    return [{
+      type: 'dimension',
+      a: this.a,
+      b: this.b,
+      offset: offsetFromPoint(this.a, this.b, this.current),
+      color: '#f0b429',
+    }]
+  }
+
+  cancel(ctx: ToolContext) {
+    this.a = null
+    this.b = null
+    this.current = null
+    ctx.setStatus('Cota cancelada')
+  }
+
+  onKeyDown(ctx: ToolContext, key: string) {
+    if (key === 'Escape') {
+      this.cancel(ctx)
+      return true
+    }
+    return false
+  }
+}
+
+export class BlockInsertTool implements Tool {
+  id: ToolId = 'block'
+
+  onActivate(ctx: ToolContext) {
+    const block = ctx.doc.activeBlock
+    if (!block) {
+      ctx.setStatus('Selecione um bloco no painel ou crie um a partir da seleção')
+      return
+    }
+    ctx.setStatus(`Inserir bloco "${block.name}" — clique o ponto base`)
+  }
+
+  onPointerDown(ctx: ToolContext, p: PointerInfo) {
+    const block = ctx.doc.activeBlock
+    if (!block) {
+      ctx.setStatus('Nenhum bloco ativo')
+      return
+    }
+    ctx.doc.addEntity({
+      id: uid('ins'),
+      type: 'block',
+      layerId: ctx.doc.activeLayer.id,
+      blockId: block.id,
+      position: p.snapped,
+      rotation: 0,
+      scale: 1,
+    })
+    ctx.setStatus(`Bloco "${block.name}" inserido`)
+  }
+
+  onPointerMove() {}
+
+  getPreview(): PreviewPrimitive[] {
+    return []
+  }
+}
+
 export class EraseTool implements Tool {
   id: ToolId = 'erase'
 
@@ -571,7 +706,7 @@ export class EraseTool implements Tool {
   onPointerDown(ctx: ToolContext, p: PointerInfo) {
     const entities = visibleUnlockedEntities(ctx.doc)
     for (const e of [...entities].reverse()) {
-      if (hitTestEntity(e, p.world, 8)) {
+      if (hitEntity(ctx.doc, e, p.world, 8)) {
         ctx.doc.removeEntities([e.id])
         ctx.setStatus('Objeto apagado')
         return
@@ -668,6 +803,8 @@ export function createTools(): Record<ToolId, Tool> {
     rect: new RectTool(),
     circle: new CircleTool(),
     arc: new ArcTool(),
+    dimension: new DimensionTool(),
+    block: new BlockInsertTool(),
     erase: new EraseTool(),
     measure: new MeasureTool(),
     pan: new PanTool(),

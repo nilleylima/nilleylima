@@ -105,6 +105,18 @@ function candidatesFromEntity(entity: Entity, mode: SnapMode): Array<{
         })
       }
       break
+    case 'dimension':
+      if (mode.endpoint) {
+        out.push({ point: entity.a, kind: 'endpoint' })
+        out.push({ point: entity.b, kind: 'endpoint' })
+      }
+      if (mode.midpoint) out.push({ point: mid(entity.a, entity.b), kind: 'midpoint' })
+      break
+    case 'block':
+      if (mode.endpoint || mode.center) {
+        out.push({ point: entity.position, kind: 'center' })
+      }
+      break
   }
   return out
 }

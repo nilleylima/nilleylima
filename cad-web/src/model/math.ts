@@ -1,4 +1,4 @@
-import type { Vec2, Entity } from './types'
+import type { Vec2, Entity, DimensionEntity } from './types'
 
 export const EPS = 1e-9
 
@@ -114,6 +114,47 @@ export function segmentsIntersect(
   return { x: a1.x + t * dax, y: a1.y + t * day }
 }
 
+export type DimensionLayout = {
+  a: Vec2
+  b: Vec2
+  d1: Vec2
+  d2: Vec2
+  text: Vec2
+  length: number
+  angle: number
+}
+
+export function dimensionLayout(dim: DimensionEntity): DimensionLayout {
+  const dir = normalize(sub(dim.b, dim.a))
+  const normal = { x: -dir.y, y: dir.x }
+  const d1 = add(dim.a, mul(normal, dim.offset))
+  const d2 = add(dim.b, mul(normal, dim.offset))
+  return {
+    a: dim.a,
+    b: dim.b,
+    d1,
+    d2,
+    text: mid(d1, d2),
+    length: dist(dim.a, dim.b),
+    angle: angle(dim.a, dim.b),
+  }
+}
+
+export function offsetFromPoint(a: Vec2, b: Vec2, point: Vec2): number {
+  const dir = normalize(sub(b, a))
+  const normal = { x: -dir.y, y: dir.x }
+  return (point.x - a.x) * normal.x + (point.y - a.y) * normal.y
+}
+
+export function dimensionSegments(entity: DimensionEntity): Array<[Vec2, Vec2]> {
+  const layout = dimensionLayout(entity)
+  return [
+    [layout.a, layout.d1],
+    [layout.b, layout.d2],
+    [layout.d1, layout.d2],
+  ]
+}
+
 export function entitySegments(entity: Entity): Array<[Vec2, Vec2]> {
   switch (entity.type) {
     case 'line':
@@ -147,6 +188,8 @@ export function entitySegments(entity: Entity): Array<[Vec2, Vec2]> {
       }
       return segs
     }
+    case 'dimension':
+      return dimensionSegments(entity)
     default:
       return []
   }
@@ -161,6 +204,7 @@ export function hitTestEntity(
     case 'line':
     case 'rect':
     case 'polyline':
+    case 'dimension':
       return entitySegments(entity).some(([a, b]) =>
         pointNearSegment(point, a, b, tolerance),
       )
@@ -175,6 +219,8 @@ export function hitTestEntity(
       )
       return angleInArc(ang, entity.startAngle, entity.endAngle)
     }
+    case 'block':
+      return dist(point, entity.position) <= Math.max(tolerance, 8)
   }
 }
 
@@ -199,10 +245,23 @@ export function boundsOfEntity(entity: Entity): {
 } | null {
   switch (entity.type) {
     case 'line':
-      return {
-        min: v(Math.min(entity.a.x, entity.b.x), Math.min(entity.a.y, entity.b.y)),
-        max: v(Math.max(entity.a.x, entity.b.x), Math.max(entity.a.y, entity.b.y)),
+    case 'dimension': {
+      const pts =
+        entity.type === 'dimension'
+          ? dimensionSegments(entity).flat()
+          : [entity.a, entity.b]
+      let minX = Infinity
+      let minY = Infinity
+      let maxX = -Infinity
+      let maxY = -Infinity
+      for (const p of pts) {
+        minX = Math.min(minX, p.x)
+        minY = Math.min(minY, p.y)
+        maxX = Math.max(maxX, p.x)
+        maxY = Math.max(maxY, p.y)
       }
+      return { min: v(minX, minY), max: v(maxX, maxY) }
+    }
     case 'rect':
       return {
         min: v(Math.min(entity.a.x, entity.b.x), Math.min(entity.a.y, entity.b.y)),
@@ -227,6 +286,11 @@ export function boundsOfEntity(entity: Entity): {
       return {
         min: v(entity.center.x - entity.radius, entity.center.y - entity.radius),
         max: v(entity.center.x + entity.radius, entity.center.y + entity.radius),
+      }
+    case 'block':
+      return {
+        min: v(entity.position.x - 10, entity.position.y - 10),
+        max: v(entity.position.x + 10, entity.position.y + 10),
       }
   }
 }

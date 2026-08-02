@@ -7,6 +7,8 @@ export type ToolId =
   | 'rect'
   | 'circle'
   | 'arc'
+  | 'dimension'
+  | 'block'
   | 'erase'
   | 'measure'
   | 'pan'
@@ -50,12 +52,39 @@ export type ArcEntity = EntityBase & {
   endAngle: number
 }
 
-export type Entity =
+/** Cota linear: pontos a/b medidos; offset = distância assinada da linha de cota. */
+export type DimensionEntity = EntityBase & {
+  type: 'dimension'
+  a: Vec2
+  b: Vec2
+  offset: number
+}
+
+/** Inserção de bloco no desenho. */
+export type BlockInsertEntity = EntityBase & {
+  type: 'block'
+  blockId: string
+  position: Vec2
+  rotation: number
+  scale: number
+}
+
+export type PrimitiveEntity =
   | LineEntity
   | PolylineEntity
   | RectEntity
   | CircleEntity
   | ArcEntity
+  | DimensionEntity
+
+export type Entity = PrimitiveEntity | BlockInsertEntity
+
+export type BlockDefinition = {
+  id: string
+  name: string
+  base: Vec2
+  entities: PrimitiveEntity[]
+}
 
 export type Layer = {
   id: string
@@ -66,10 +95,12 @@ export type Layer = {
 }
 
 export type DocumentData = {
-  version: 1
+  version: 2
   layers: Layer[]
   entities: Entity[]
+  blocks: BlockDefinition[]
   activeLayerId: string
+  activeBlockId?: string | null
 }
 
 export type SnapMode = {
