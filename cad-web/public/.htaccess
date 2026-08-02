@@ -1,0 +1,26 @@
+# Drafter — Apache (AllowOverride FileInfo ou All)
+Options -Indexes
+DirectoryIndex index.html
+
+# MIME correto para WebAssembly (importação DWG)
+AddType application/wasm .wasm
+AddType application/octet-stream .dwg
+
+# Cache de assets com hash
+<IfModule mod_headers.c>
+  <FilesMatch "\.(wasm)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+  <FilesMatch "\.(js|css)$">
+    Header set Cache-Control "public, max-age=31536000, immutable"
+  </FilesMatch>
+</IfModule>
+
+# Fallback SPA (útil se houver rotas futuras)
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule ^ index.html [L]
+</IfModule>
