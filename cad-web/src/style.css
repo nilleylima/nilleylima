@@ -130,6 +130,8 @@ select {
   border-right: 1px solid var(--border);
   background: rgba(21, 27, 34, 0.9);
   overflow: auto;
+  position: relative;
+  z-index: 2;
 }
 
 .tool-btn {
@@ -208,6 +210,8 @@ select {
   flex-direction: column;
   min-width: 0;
   overflow: hidden;
+  position: relative;
+  z-index: 2;
 }
 
 .side section {

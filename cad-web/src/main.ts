@@ -44,6 +44,8 @@ class CadApp {
   }
 
   selectedIds = new Set<string>()
+  /** Mantém a última seleção não vazia para ações do painel (criar bloco). */
+  private selectionBuffer: string[] = []
   hoverId: string | null = null
   toolId: ToolId = 'line'
   tools = createTools()
@@ -357,6 +359,11 @@ class CadApp {
         this.saveJson()
         return
       }
+      if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'b') {
+        ev.preventDefault()
+        this.createBlockFromCurrentSelection()
+        return
+      }
 
       if (this.tools[this.toolId].onKeyDown?.(this.ctx(), ev.key, ev)) {
         this.requestRender()
@@ -425,22 +432,7 @@ class CadApp {
         this.setStatus('Camada adicionada')
         break
       case 'create-block': {
-        if (!this.selectedIds.size) {
-          this.setStatus('Selecione objetos antes de criar um bloco')
-          break
-        }
-        const nameInput = document.querySelector('#block-name') as HTMLInputElement | null
-        const fallback = `Bloco ${this.doc.data.blocks.length + 1}`
-        const name = (nameInput?.value.trim() || fallback)
-        const block = this.doc.createBlockFromSelection([...this.selectedIds], name)
-        if (!block) {
-          this.setStatus('Não foi possível criar o bloco (evite só inserções)')
-          break
-        }
-        this.selectedIds.clear()
-        if (nameInput) nameInput.value = `Bloco ${this.doc.data.blocks.length + 1}`
-        this.renderBlocks()
-        this.setStatus(`Bloco "${block.name}" criado`)
+        this.createBlockFromCurrentSelection()
         break
       }
       case 'insert-block':
@@ -524,11 +516,37 @@ class CadApp {
       selectedIds: this.selectedIds,
       setSelected: (ids) => {
         this.selectedIds = new Set(ids)
+        if (ids.length) this.selectionBuffer = [...ids]
         this.requestRender()
       },
       setStatus: (msg) => this.setStatus(msg),
       requestRender: () => this.requestRender(),
     }
+  }
+
+  private createBlockFromCurrentSelection() {
+    const ids = this.selectedIds.size
+      ? [...this.selectedIds]
+      : this.selectionBuffer.filter((id) =>
+          this.doc.data.entities.some((e) => e.id === id),
+        )
+    if (!ids.length) {
+      this.setStatus('Selecione objetos antes de criar um bloco')
+      return
+    }
+    const nameInput = document.querySelector('#block-name') as HTMLInputElement | null
+    const fallback = `Bloco ${this.doc.data.blocks.length + 1}`
+    const name = nameInput?.value.trim() || fallback
+    const block = this.doc.createBlockFromSelection(ids, name)
+    if (!block) {
+      this.setStatus('Não foi possível criar o bloco (evite só inserções)')
+      return
+    }
+    this.selectedIds.clear()
+    this.selectionBuffer = []
+    if (nameInput) nameInput.value = `Bloco ${this.doc.data.blocks.length + 1}`
+    this.renderBlocks()
+    this.setStatus(`Bloco "${block.name}" criado`)
   }
 
   private setStatus(msg: string) {
