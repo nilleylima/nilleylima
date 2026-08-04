@@ -1,0 +1,32 @@
+{
+  "extName": {
+    "message": "Chrome IE Tab"
+  },
+  "extDescription": {
+    "message": "Abre páginas no motor Internet Explorer (Trident), no estilo IE Tab."
+  },
+  "actionTitle": {
+    "message": "Abrir no IE"
+  },
+  "openInIe": {
+    "message": "Abrir no Internet Explorer"
+  },
+  "openCurrent": {
+    "message": "Abrir esta página no IE"
+  },
+  "addToAutoList": {
+    "message": "Adicionar domínio à lista automática"
+  },
+  "removeFromAutoList": {
+    "message": "Remover domínio da lista automática"
+  },
+  "options": {
+    "message": "Opções"
+  },
+  "hostMissing": {
+    "message": "Host nativo não instalado. Instale o componente Windows para usar o motor IE."
+  },
+  "windowsOnly": {
+    "message": "O motor Internet Explorer só está disponível no Windows."
+  }
+}

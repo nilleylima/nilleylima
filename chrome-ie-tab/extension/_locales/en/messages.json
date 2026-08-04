@@ -1,0 +1,32 @@
+{
+  "extName": {
+    "message": "Chrome IE Tab"
+  },
+  "extDescription": {
+    "message": "Open pages with the Internet Explorer (Trident) engine, IE Tab style."
+  },
+  "actionTitle": {
+    "message": "Open in IE"
+  },
+  "openInIe": {
+    "message": "Open with Internet Explorer"
+  },
+  "openCurrent": {
+    "message": "Open this page in IE"
+  },
+  "addToAutoList": {
+    "message": "Add domain to auto list"
+  },
+  "removeFromAutoList": {
+    "message": "Remove domain from auto list"
+  },
+  "options": {
+    "message": "Options"
+  },
+  "hostMissing": {
+    "message": "Native host not installed. Install the Windows component to use the IE engine."
+  },
+  "windowsOnly": {
+    "message": "The Internet Explorer engine is only available on Windows."
+  }
+}
