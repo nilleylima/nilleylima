@@ -1,0 +1,9 @@
+{
+  "name": "com.nilleylima.chrome_ie_tab",
+  "description": "Chrome IE Tab native host (Trident / Internet Explorer WebBrowser)",
+  "path": "HOST_PATH_PLACEHOLDER",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://EXTENSION_ID_PLACEHOLDER/"
+  ]
+}

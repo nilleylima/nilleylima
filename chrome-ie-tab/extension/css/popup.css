@@ -1,0 +1,111 @@
+:root {
+  --bg: #0f2740;
+  --panel: #163554;
+  --text: #f3f7fb;
+  --muted: #9db4c9;
+  --accent: #0078d7;
+  --accent-2: #ffb900;
+  --ok: #3bb273;
+  --warn: #e3a008;
+  --error: #e35d6a;
+  --radius: 10px;
+  font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  width: 320px;
+  color: var(--text);
+  background:
+    radial-gradient(120% 80% at 0% 0%, rgba(0, 120, 215, 0.35), transparent 55%),
+    radial-gradient(100% 70% at 100% 0%, rgba(255, 185, 0, 0.18), transparent 50%),
+    var(--bg);
+  padding: 14px;
+}
+
+.header {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.header p {
+  margin: 2px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.card {
+  background: color-mix(in srgb, var(--panel) 88%, black);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: grid;
+  gap: 8px;
+}
+
+.url {
+  margin: 0;
+  font-size: 12px;
+  color: var(--muted);
+  word-break: break-all;
+  min-height: 2.4em;
+}
+
+.btn {
+  border: 0;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn.primary {
+  background: linear-gradient(180deg, #1a8ae8, var(--accent));
+  color: white;
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.status {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  font-size: 12px;
+}
+
+.status[data-kind="ok"] { border-left: 3px solid var(--ok); }
+.status[data-kind="warn"] { border-left: 3px solid var(--warn); }
+.status[data-kind="error"] { border-left: 3px solid var(--error); }
+.status[data-kind="info"] { border-left: 3px solid var(--accent-2); }
+
+.status p { margin: 0; }
+
+.footer {
+  margin-top: 12px;
+  display: grid;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.footer a {
+  color: #9fd0ff;
+}
+
+.muted {
+  color: var(--muted);
+  word-break: break-all;
+}

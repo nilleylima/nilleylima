@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chrome IE Tab — Opções</title>
+  <link rel="stylesheet" href="css/options.css" />
+</head>
+<body>
+  <main class="wrap">
+    <header class="hero">
+      <img src="icons/icon128.png" alt="" width="64" height="64" />
+      <div>
+        <h1>Chrome IE Tab</h1>
+        <p>Configure a lista automática e o host nativo do Windows (motor Trident).</p>
+      </div>
+    </header>
+
+    <section class="panel">
+      <h2>Lista automática</h2>
+      <p class="hint">
+        Quando uma URL corresponder a um padrão abaixo, a extensão abre automaticamente no visualizador IE.
+        Use domínio (<code>intranet.empresa.local</code>), curinga (<code>*.empresa.local</code>)
+        ou URL com <code>*</code> (<code>https://legado.empresa.local/app/*</code>).
+      </p>
+      <label class="check">
+        <input type="checkbox" id="autoOpenEnabled" />
+        Ativar abertura automática
+      </label>
+      <label class="check">
+        <input type="checkbox" id="closeChromeTabAfterOpen" />
+        Fechar a aba do Chrome após abrir no IE
+      </label>
+      <textarea id="autoList" rows="10" placeholder="intranet.empresa.local&#10;*.legado.local&#10;https://erp.empresa.local/old/*"></textarea>
+      <div class="row">
+        <button id="btnSave" class="btn primary" type="button">Salvar</button>
+        <span id="saveStatus" class="muted"></span>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Host nativo (Windows)</h2>
+      <p class="hint">
+        O Chrome não consegue embutir o motor IE sozinho. É necessário instalar o host nativo
+        (<strong>ChromeIETabHost</strong> no Windows. Ele registra Native Messaging e abre um
+        visualizador WinForms com o controle <code>WebBrowser</code> (Trident / IE11).
+      </p>
+      <ol class="steps">
+        <li>Em <code>chrome://extensions</code>, ative o <em>Modo do desenvolvedor</em> e carregue a pasta <code>extension</code>.</li>
+        <li>Copie o <strong>ID da extensão</strong> abaixo.</li>
+        <li>No Windows, abra PowerShell na pasta <code>native-host</code> e execute:
+          <pre>.\install.ps1 -ExtensionId SEU_ID_AQUI</pre>
+        </li>
+        <li>Reinicie o Chrome e teste “Abrir no IE”.</li>
+      </ol>
+      <p><strong>ID da extensão:</strong> <code id="extId"></code>
+        <button id="btnCopyId" class="btn secondary" type="button">Copiar</button>
+      </p>
+      <button id="btnPing" class="btn secondary" type="button">Testar conexão com o host</button>
+      <p id="pingResult" class="muted"></p>
+    </section>
+
+    <section class="panel warn">
+      <h2>Aviso de segurança</h2>
+      <p>
+        O motor Trident/IE não recebe mais atualizações de segurança desde 2022.
+        Use apenas com sites internos confiáveis e sistemas legados que você controla.
+        Para a maioria dos casos corporativos modernos, prefira o <em>IE Mode</em> do Microsoft Edge.
+      </p>
+    </section>
+  </main>
+  <script type="module" src="js/options.js"></script>
+</body>
+</html>

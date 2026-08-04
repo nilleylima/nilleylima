@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Chrome IE Tab</title>
+  <link rel="stylesheet" href="css/popup.css" />
+</head>
+<body>
+  <header class="header">
+    <img src="icons/icon48.png" alt="" width="28" height="28" />
+    <div>
+      <strong>Chrome IE Tab</strong>
+      <p>Motor Internet Explorer (Trident)</p>
+    </div>
+  </header>
+
+  <section class="card">
+    <p id="currentUrl" class="url" title="">—</p>
+    <button id="btnOpen" class="btn primary" type="button">Abrir no IE</button>
+    <button id="btnToggleDomain" class="btn secondary" type="button" hidden>
+      Adicionar domínio à lista automática
+    </button>
+  </section>
+
+  <section class="status" id="statusBox" hidden>
+    <p id="statusText"></p>
+  </section>
+
+  <footer class="footer">
+    <a href="options.html" target="_blank" rel="noopener">Opções e lista automática</a>
+    <span id="extensionId" class="muted"></span>
+  </footer>
+
+  <script type="module" src="js/popup.js"></script>
+</body>
+</html>
