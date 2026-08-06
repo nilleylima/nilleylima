@@ -332,7 +332,10 @@ async function startCamera() {
   } catch (err) {
     console.error(err)
     showScreen('home')
-    showToast('Não foi possível abrir a câmera. Verifique a permissão ou use HTTPS.')
+    showToast(
+      'Não foi possível abrir a câmera. No XAMPP use http://localhost/inspex/ (não o IP), permita a câmera, ou use a Demo.',
+      5600,
+    )
   }
 }
 
