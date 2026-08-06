@@ -10,6 +10,7 @@ const LABELS = {
   dent: 'Amassado / relevo',
   chip: 'Lasca / falha de material',
   anomaly: 'Irregularidade',
+  deviation: 'Desvio da referência',
 }
 
 const COLORS = {
@@ -19,6 +20,7 @@ const COLORS = {
   dent: '#f0a202',
   chip: '#3ecf8e',
   anomaly: '#f0a202',
+  deviation: '#ff8a3d',
 }
 
 export function defectLabel(type) {
@@ -31,10 +33,28 @@ export function defectColor(type) {
 
 /**
  * @param {ImageData} imageData
- * @param {{ sensitivity?: number }} options
+ * @param {{
+ *   sensitivity?: number,
+ *   preset?: object,
+ *   referenceDiff?: { diff: Float32Array, meanDiff: number } | null,
+ * }} options
  */
 export function detectDefects(imageData, options = {}) {
-  const sensitivity = clamp(options.sensitivity ?? 0.55, 0.2, 0.95)
+  const preset = options.preset || {}
+  const sensitivity = clamp(
+    options.sensitivity ?? preset.sensitivity ?? 0.55,
+    0.2,
+    0.95,
+  )
+  const edgeWeight = preset.edgeWeight ?? 0.45
+  const varWeight = preset.varWeight ?? 0.3
+  const colorWeight = preset.colorWeight ?? 0.15
+  const brightnessWeight = preset.brightnessWeight ?? 0.9
+  const refDiffWeight = preset.refDiffWeight ?? 0.55
+  const minConfidence = preset.minConfidence ?? 0.34
+  const minAreaRatio = preset.minAreaRatio ?? 0.001
+  const referenceDiff = options.referenceDiff || null
+
   const { width, height, data } = imageData
 
   const gray = new Float32Array(width * height)
@@ -78,13 +98,24 @@ export function detectDefects(imageData, options = {}) {
   edgeStd = Math.sqrt(edgeStd / n) + 1e-6
   varStd = Math.sqrt(varStd / n) + 1e-6
 
-  // Higher sensitivity → lower threshold (more detections)
+  let refMean = 0
+  let refStd = 1e-6
+  if (referenceDiff?.diff) {
+    for (let i = 0; i < n; i++) refMean += referenceDiff.diff[i]
+    refMean /= n
+    let acc = 0
+    for (let i = 0; i < n; i++) acc += (referenceDiff.diff[i] - refMean) ** 2
+    refStd = Math.sqrt(acc / n) + 1e-6
+  }
+
   const edgeZ = 1.85 - sensitivity * 1.15
   const varZ = 1.65 - sensitivity * 1.05
   const colorZ = 2.1 - sensitivity * 0.9
+  const scoreThreshold = 0.22 + (1 - sensitivity) * 0.2
 
   const mask = new Uint8Array(n)
   const scoreMap = new Float32Array(n)
+  const fromRef = new Uint8Array(n)
 
   for (let y = 2; y < height - 2; y++) {
     for (let x = 2; x < width - 2; x++) {
@@ -96,20 +127,24 @@ export function detectDefects(imageData, options = {}) {
         Math.hypot(data[di] - meanR, data[di + 1] - meanG, data[di + 2] - meanB) / 255
 
       const brightnessDelta = Math.abs(blurred[i] - localMean[i]) / 255
-      const score =
-        Math.max(0, ez - edgeZ) * 0.45 +
-        Math.max(0, vz - varZ) * 0.3 +
-        Math.max(0, colorDist * 3 - colorZ * 0.35) * 0.15 +
-        brightnessDelta * 0.9
+      let score =
+        Math.max(0, ez - edgeZ) * edgeWeight +
+        Math.max(0, vz - varZ) * varWeight +
+        Math.max(0, colorDist * 3 - colorZ * 0.35) * colorWeight +
+        brightnessDelta * brightnessWeight
+
+      if (referenceDiff?.diff) {
+        const rz = (referenceDiff.diff[i] - refMean) / refStd
+        const refBoost = Math.max(0, rz - (1.4 - sensitivity * 0.6)) * refDiffWeight
+        if (refBoost > 0.08) fromRef[i] = 1
+        score += refBoost
+      }
 
       scoreMap[i] = score
-      if (score > 0.22 + (1 - sensitivity) * 0.2) {
-        mask[i] = 1
-      }
+      if (score > scoreThreshold) mask[i] = 1
     }
   }
 
-  // Morphological cleanup (open then close-ish via neighbor vote)
   const cleaned = morphClean(mask, width, height)
   const components = connectedComponents(cleaned, width, height, scoreMap)
 
@@ -118,26 +153,29 @@ export function detectDefects(imageData, options = {}) {
 
   const defects = components
     .filter((c) => c.area >= minArea && c.area <= maxArea)
-    .map((c) => classifyComponent(c, edges, blurred, localMean, width, height))
-    .filter((d) => d.confidence >= 0.34 && d.areaRatio >= 0.001)
+    .map((c) => classifyComponent(c, edges, blurred, localMean, width, height, fromRef))
+    .filter((d) => d.confidence >= minConfidence && d.areaRatio >= minAreaRatio)
     .sort((a, b) => b.confidence - a.confidence)
     .slice(0, 8)
 
   const surfaceQuality = estimateSurfaceQuality(defects, edgeMean, edgeStd)
+  const usedReference = Boolean(referenceDiff?.diff)
 
   return {
     defects,
     surfaceQuality,
+    usedReference,
     stats: {
       edgeMean,
       edgeStd,
       componentCount: components.length,
       kept: defects.length,
+      meanRefDiff: referenceDiff?.meanDiff ?? null,
     },
   }
 }
 
-function classifyComponent(c, edges, gray, localMean, width, height) {
+function classifyComponent(c, edges, gray, localMean, width, height, fromRef) {
   const aspect = c.w / Math.max(1, c.h)
   const elongated = aspect > 2.4 || aspect < 1 / 2.4
   const fill = c.area / Math.max(1, c.w * c.h)
@@ -146,12 +184,15 @@ function classifyComponent(c, edges, gray, localMean, width, height) {
 
   let edgeSum = 0
   let deltaSum = 0
+  let refVotes = 0
   for (const idx of c.pixels) {
     edgeSum += edges[idx]
     deltaSum += Math.abs(gray[idx] - localMean[idx])
+    if (fromRef?.[idx]) refVotes++
   }
   const avgEdge = edgeSum / c.area
   const avgDelta = deltaSum / c.area
+  const refRatio = refVotes / c.area
 
   let type = 'anomaly'
   let confidence = clamp(c.avgScore * 0.85, 0, 1)
@@ -168,8 +209,15 @@ function classifyComponent(c, edges, gray, localMean, width, height) {
   } else if (avgEdge > 45 && compactness < 0.22) {
     type = 'crack'
     confidence = clamp(0.46 + c.avgScore * 0.3, 0, 0.96)
+  } else if (refRatio > 0.45) {
+    type = 'deviation'
+    confidence = clamp(0.48 + c.avgScore * 0.35 + refRatio * 0.15, 0, 0.97)
   } else if (c.avgScore < 0.4) {
     confidence = 0.2
+  }
+
+  if (refRatio > 0.35) {
+    confidence = clamp(confidence + 0.06, 0, 0.99)
   }
 
   return {
@@ -178,6 +226,7 @@ function classifyComponent(c, edges, gray, localMean, width, height) {
     label: defectLabel(type),
     color: defectColor(type),
     confidence: Number(confidence.toFixed(2)),
+    fromReference: refRatio > 0.35,
     bbox: {
       x: c.minX / width,
       y: c.minY / height,
@@ -386,15 +435,17 @@ function clampInt(v, min, max) {
 
 /**
  * Synthetic scratched metal sample for demo mode (no camera).
+ * Pass `{ defects: false }` to generate a clean golden reference.
  */
-export function createDemoImageData(size = 320) {
+export function createDemoImageData(size = 320, options = {}) {
+  const withDefects = options.defects !== false
   const canvas = document.createElement('canvas')
   canvas.width = size
   canvas.height = size
   const ctx = canvas.getContext('2d')
 
   // Deterministic noise for stable demos
-  let seed = 42
+  let seed = options.seed ?? 42
   const rand = () => {
     seed = (seed * 16807) % 2147483647
     return (seed - 1) / 2147483646
@@ -415,6 +466,10 @@ export function createDemoImageData(size = 320) {
     ctx.moveTo(0, y)
     ctx.lineTo(size, y + (rand() - 0.5) * 2.5)
     ctx.stroke()
+  }
+
+  if (!withDefects) {
+    return ctx.getImageData(0, 0, size, size)
   }
 
   // scratch

@@ -1,6 +1,15 @@
 import './style.css'
 import { CameraController, captureRoi, drawDefects, clearOverlay } from './camera.js'
 import { detectDefects, createDemoImageData, defectColor } from './detector.js'
+import { SURFACE_PRESETS, getPreset } from './presets.js'
+import {
+  differenceMap,
+  saveReference,
+  loadReference,
+  clearReference,
+} from './reference.js'
+
+const PRESET_STORAGE = 'inspex.preset.v1'
 
 const els = {
   home: document.getElementById('screen-home'),
@@ -16,6 +25,9 @@ const els = {
   resultsSummary: document.getElementById('results-summary'),
   resultsList: document.getElementById('results-list'),
   toast: document.getElementById('toast'),
+  presetList: document.getElementById('preset-list'),
+  presetHint: document.getElementById('preset-hint'),
+  refIndicator: document.getElementById('ref-indicator'),
   btnStart: document.getElementById('btn-start'),
   btnDemo: document.getElementById('btn-demo'),
   btnBack: document.getElementById('btn-back'),
@@ -23,6 +35,8 @@ const els = {
   btnLive: document.getElementById('btn-live'),
   btnAnalyze: document.getElementById('btn-analyze'),
   btnTorch: document.getElementById('btn-torch'),
+  btnSaveRef: document.getElementById('btn-save-ref'),
+  btnClearRef: document.getElementById('btn-clear-ref'),
   btnCloseResults: document.getElementById('btn-close-results'),
   btnRescan: document.getElementById('btn-rescan'),
 }
@@ -35,6 +49,9 @@ const state = {
   lastDefects: [],
   lastRoi: null,
   demoImage: null,
+  demoReference: null,
+  reference: null,
+  presetId: localStorage.getItem(PRESET_STORAGE) || 'metal',
   raf: 0,
   busy: false,
 }
@@ -50,6 +67,10 @@ function showToast(message, ms = 3200) {
 
 function setStatus(text) {
   els.status.textContent = text
+}
+
+function currentPreset() {
+  return getPreset(state.presetId)
 }
 
 function showScreen(name) {
@@ -69,21 +90,24 @@ function closeResults() {
 }
 
 function openResults(result) {
-  const { defects, surfaceQuality } = result
+  const { defects, surfaceQuality, usedReference } = result
   els.results.hidden = false
   requestAnimationFrame(() => els.results.classList.add('is-open'))
 
   els.resultsTitle.textContent =
     defects.length === 0 ? 'Sem defeitos evidentes' : `${defects.length} detecção(ões)`
 
-  els.resultsSummary.textContent = `${surfaceQuality.label} · qualidade estimada ${surfaceQuality.score}/100. Ajuste a sensibilidade e a iluminação para refinar.`
+  const modeNote = usedReference
+    ? 'Comparado com a peça boa salva'
+    : 'Modo anomalia (sem referência)'
+  els.resultsSummary.textContent = `${surfaceQuality.label} · qualidade ${surfaceQuality.score}/100 · ${modeNote}. Preset: ${currentPreset().label}.`
 
   els.resultsList.innerHTML = ''
   if (!defects.length) {
     const li = document.createElement('li')
     li.innerHTML = `<span class="defect-badge" style="background:${defectColor('anomaly')}"></span>
       <div class="defect-copy"><strong>Nenhuma anomalia acima do limiar</strong>
-      <span>Tente aproximar, melhorar a luz ou subir a sensibilidade.</span></div>
+      <span>Salve uma peça boa ou ajuste sensibilidade/preset.</span></div>
       <span class="defect-score">OK</span>`
     els.resultsList.appendChild(li)
     return
@@ -91,9 +115,10 @@ function openResults(result) {
 
   for (const d of defects) {
     const li = document.createElement('li')
+    const extra = d.fromReference ? ' · vs referência' : ''
     li.innerHTML = `<span class="defect-badge ${d.type}"></span>
       <div class="defect-copy"><strong>${d.label}</strong>
-      <span>Área ${(d.areaRatio * 100).toFixed(2)}% do quadro</span></div>
+      <span>Área ${(d.areaRatio * 100).toFixed(2)}% do quadro${extra}</span></div>
       <span class="defect-score">${Math.round(d.confidence * 100)}%</span>`
     els.resultsList.appendChild(li)
   }
@@ -103,8 +128,27 @@ function getSensitivity() {
   return Number(els.sensitivity.value)
 }
 
+function getActiveReferenceImage() {
+  if (state.mode === 'demo' && state.demoReference) return state.demoReference
+  return state.reference?.imageData || null
+}
+
+function runDetection(imageData) {
+  const preset = currentPreset()
+  const refImage = getActiveReferenceImage()
+  let referenceDiff = null
+  if (refImage) {
+    referenceDiff = differenceMap(imageData, refImage)
+  }
+  return detectDefects(imageData, {
+    sensitivity: getSensitivity(),
+    preset,
+    referenceDiff,
+  })
+}
+
 function analyzeImageData(imageData, roi) {
-  const result = detectDefects(imageData, { sensitivity: getSensitivity() })
+  const result = runDetection(imageData)
   state.lastDefects = result.defects
   state.lastRoi = roi
   drawDefects(els.overlay, els.video, result.defects, roi)
@@ -114,6 +158,49 @@ function analyzeImageData(imageData, roi) {
 function setDemoVisible(on) {
   els.demoFrame.hidden = !on
   els.video.hidden = on
+}
+
+function updateRefUi() {
+  const has =
+    (state.mode === 'demo' && state.demoReference) || Boolean(state.reference)
+  els.refIndicator.textContent = has
+    ? `Referência ativa · ${currentPreset().label}`
+    : 'Sem referência'
+  els.refIndicator.classList.toggle('is-ready', has)
+  els.btnClearRef.hidden = !has || state.mode === 'demo'
+}
+
+function renderPresets() {
+  els.presetList.innerHTML = ''
+  for (const preset of SURFACE_PRESETS) {
+    const btn = document.createElement('button')
+    btn.type = 'button'
+    btn.className = 'preset-chip' + (preset.id === state.presetId ? ' is-active' : '')
+    btn.textContent = preset.label
+    btn.setAttribute('role', 'option')
+    btn.setAttribute('aria-selected', preset.id === state.presetId ? 'true' : 'false')
+    btn.addEventListener('click', () => selectPreset(preset.id))
+    els.presetList.appendChild(btn)
+  }
+  const active = currentPreset()
+  els.presetHint.textContent = active.hint
+  els.sensitivity.value = String(active.sensitivity)
+}
+
+function selectPreset(id) {
+  state.presetId = id
+  localStorage.setItem(PRESET_STORAGE, id)
+  renderPresets()
+  updateRefUi()
+  if (state.mode === 'demo' && state.demoImage) runAnalyze()
+}
+
+function hydrateReference() {
+  state.reference = loadReference()
+  if (state.reference?.presetId) {
+    state.presetId = state.reference.presetId
+  }
+  updateRefUi()
 }
 
 async function startCamera() {
@@ -128,11 +215,17 @@ async function startCamera() {
     setDemoVisible(false)
     state.mode = 'camera'
     state.demoImage = null
+    state.demoReference = null
     await camera.start('environment')
-    setStatus('Aponte para a superfície e toque em Analisar')
+    setStatus(
+      state.reference
+        ? 'Referência pronta — enquadre e analise'
+        : 'Salve uma peça boa ou analise em modo anomalia',
+    )
     els.btnTorch.disabled = !camera.supportsTorch()
     clearOverlay(els.overlay)
     closeResults()
+    updateRefUi()
   } catch (err) {
     console.error(err)
     showScreen('home')
@@ -159,7 +252,9 @@ function liveLoop(ts) {
       setStatus(
         n
           ? `${n} possível(is) defeito(s) · qualidade ${result.surfaceQuality.score}`
-          : 'Monitorando superfície…',
+          : result.usedReference
+            ? 'Monitorando vs referência…'
+            : 'Monitorando superfície…',
       )
     }
   }
@@ -183,6 +278,41 @@ function toggleLive() {
   state.raf = requestAnimationFrame(liveLoop)
 }
 
+function captureCurrentImage() {
+  if (state.mode === 'demo' && state.demoImage) return state.demoImage
+  const frame = captureRoi(els.video, els.work)
+  return frame?.imageData || null
+}
+
+function saveCurrentAsReference() {
+  const imageData = captureCurrentImage()
+  if (!imageData) {
+    showToast('Aguarde o frame da câmera para salvar a referência.')
+    return
+  }
+  const ok = saveReference(imageData, {
+    presetId: state.presetId,
+    label: `Peça boa · ${currentPreset().label}`,
+  })
+  if (!ok) {
+    showToast('Não foi possível salvar a referência neste dispositivo.')
+    return
+  }
+  state.reference = loadReference()
+  updateRefUi()
+  setStatus('Peça boa salva — agora analise outra peça')
+  showToast('Referência salva. Enquadre a peça sob inspeção e toque em Analisar.')
+}
+
+function clearCurrentReference() {
+  clearReference()
+  state.reference = null
+  state.demoReference = null
+  updateRefUi()
+  setStatus('Referência removida')
+  showToast('Referência limpa.')
+}
+
 function runAnalyze() {
   if (state.busy) return
   state.busy = true
@@ -195,7 +325,7 @@ function runAnalyze() {
       if (state.mode === 'demo' && state.demoImage) {
         const size = state.demoImage.width
         const roi = { sx: 0, sy: 0, side: size, vw: size, vh: size }
-        result = detectDefects(state.demoImage, { sensitivity: getSensitivity() })
+        result = runDetection(state.demoImage)
         state.lastDefects = result.defects
         state.lastRoi = roi
         drawDefectsOnDemo(result.defects, size)
@@ -259,17 +389,22 @@ function startDemo() {
   showScreen('scan')
   setDemoVisible(true)
   state.mode = 'demo'
+  state.presetId = 'metal'
+  localStorage.setItem(PRESET_STORAGE, 'metal')
+  renderPresets()
   els.btnTorch.disabled = true
-  setStatus('Modo demo — amostra metálica sintética')
+  setStatus('Demo: peça boa vs peça com defeitos')
 
-  const imageData = createDemoImageData(320)
-  state.demoImage = imageData
-  els.demoFrame.width = imageData.width
-  els.demoFrame.height = imageData.height
-  els.demoFrame.getContext('2d').putImageData(imageData, 0, 0)
+  // Same brush seed → fair comparison; defects only on inspection sample
+  state.demoReference = createDemoImageData(320, { defects: false, seed: 42 })
+  state.demoImage = createDemoImageData(320, { defects: true, seed: 42 })
+  els.demoFrame.width = state.demoImage.width
+  els.demoFrame.height = state.demoImage.height
+  els.demoFrame.getContext('2d').putImageData(state.demoImage, 0, 0)
 
   clearOverlay(els.overlay)
   closeResults()
+  updateRefUi()
   setTimeout(runAnalyze, 200)
 }
 
@@ -277,11 +412,13 @@ async function leaveScan() {
   stopLiveLoop()
   camera.stop()
   state.demoImage = null
+  state.demoReference = null
   setDemoVisible(false)
   clearOverlay(els.overlay)
   closeResults()
   state.mode = 'home'
   showScreen('home')
+  updateRefUi()
 }
 
 els.btnStart.addEventListener('click', startCamera)
@@ -298,6 +435,8 @@ els.btnFlip.addEventListener('click', async () => {
 })
 els.btnLive.addEventListener('click', toggleLive)
 els.btnAnalyze.addEventListener('click', runAnalyze)
+els.btnSaveRef.addEventListener('click', saveCurrentAsReference)
+els.btnClearRef.addEventListener('click', clearCurrentReference)
 els.btnTorch.addEventListener('click', async () => {
   if (state.mode !== 'camera') return
   state.torch = !state.torch
@@ -328,3 +467,6 @@ window.addEventListener('beforeunload', () => {
 if (!window.isSecureContext && location.hostname !== 'localhost') {
   showToast('Câmera exige HTTPS (ou localhost). Use o modo demo se necessário.', 5000)
 }
+
+renderPresets()
+hydrateReference()

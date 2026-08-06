@@ -30,22 +30,29 @@
           <p class="brand-mark">Inspex</p>
           <h1 class="home-headline">Veja o que o olho humano deixa passar.</h1>
           <p class="home-lede">
-            Abra a câmera, aponte para a superfície e identifique riscos,
-            manchas, trincas e irregularidades em tempo real.
+            Escolha o tipo de superfície, salve uma peça boa como referência e
+            compare a próxima leitura em tempo real.
           </p>
+
+          <div class="preset-block" aria-label="Tipo de superfície">
+            <p class="preset-label">Tipo de superfície</p>
+            <div id="preset-list" class="preset-list" role="listbox" aria-label="Presets"></div>
+            <p id="preset-hint" class="preset-hint"></p>
+          </div>
+
           <div class="home-actions">
             <button type="button" id="btn-start" class="btn btn-primary">
               Abrir câmera
             </button>
             <button type="button" id="btn-demo" class="btn btn-ghost">
-              Ver demo com amostra
+              Demo com referência
             </button>
           </div>
         </header>
         <aside class="home-meta" aria-label="Como funciona">
-          <p><span>01</span> Ilumine bem a superfície</p>
-          <p><span>02</span> Preencha o quadro de leitura</p>
-          <p><span>03</span> Toque em analisar</p>
+          <p><span>01</span> Escolha o material</p>
+          <p><span>02</span> Salve uma peça boa</p>
+          <p><span>03</span> Analise a próxima peça</p>
         </aside>
       </section>
 
@@ -77,6 +84,18 @@
 
         <div class="scan-status" id="scan-status" role="status">
           Aguardando superfície…
+        </div>
+
+        <div class="ref-bar" id="ref-bar">
+          <span id="ref-indicator" class="ref-indicator">Sem referência</span>
+          <div class="ref-actions">
+            <button type="button" id="btn-save-ref" class="btn btn-secondary btn-compact">
+              Salvar peça boa
+            </button>
+            <button type="button" id="btn-clear-ref" class="btn btn-ghost btn-compact" hidden>
+              Limpar
+            </button>
+          </div>
         </div>
 
         <footer class="scan-controls">
