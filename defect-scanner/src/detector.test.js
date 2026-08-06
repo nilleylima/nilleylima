@@ -3,6 +3,18 @@ import assert from 'node:assert/strict'
 import { detectDefects, defectLabel } from './detector.js'
 import { getPreset, SURFACE_PRESETS } from './presets.js'
 import { differenceMap, normalizeBrightness, imageDataToGray } from './reference.js'
+import { buildReportHtml } from './report.js'
+import { similarityLabel } from './embeddings.js'
+
+function installLocalStorage() {
+  const store = new Map()
+  globalThis.localStorage = {
+    getItem: (k) => (store.has(k) ? store.get(k) : null),
+    setItem: (k, v) => store.set(k, String(v)),
+    removeItem: (k) => store.delete(k),
+    clear: () => store.clear(),
+  }
+}
 
 function makeImageData(width, height, paint) {
   const data = new Uint8ClampedArray(width * height * 4)
@@ -95,4 +107,56 @@ test('brightness normalization scales toward reference mean', () => {
   assert.ok(Math.abs(out[0] - 100) < 1)
   const gray = imageDataToGray(makeImageData(2, 2))
   assert.equal(gray.length, 4)
+})
+
+test('history stores and lists inspections', async () => {
+  installLocalStorage()
+  const { addHistoryItem, listHistory, clearHistory } = await import('./history.js')
+  clearHistory()
+  addHistoryItem({
+    presetId: 'metal',
+    presetLabel: 'Metal',
+    qualityScore: 55,
+    qualityLabel: 'Defeitos relevantes',
+    defects: [{ type: 'crack', label: 'Trinca', confidence: 0.9, areaRatio: 0.02 }],
+    usedReference: true,
+    embeddingSimilarity: 0.81,
+    mode: 'demo',
+  })
+  const items = listHistory()
+  assert.equal(items.length, 1)
+  assert.equal(items[0].defectCount, 1)
+  assert.equal(items[0].embeddingSimilarity, 0.81)
+})
+
+test('report html includes quality and defects', () => {
+  const html = buildReportHtml({
+    id: 't1',
+    createdAt: Date.UTC(2026, 7, 6, 12, 0, 0),
+    presetLabel: 'Metal',
+    qualityScore: 40,
+    qualityLabel: 'Defeitos críticos',
+    defectCount: 1,
+    usedReference: true,
+    embeddingSimilarity: 0.7,
+    mode: 'demo',
+    defects: [
+      {
+        label: 'Trinca / fissura',
+        confidence: 0.96,
+        areaRatio: 0.05,
+        fromReference: true,
+      },
+    ],
+  })
+  assert.match(html, /Inspex/)
+  assert.match(html, /Trinca \/ fissura/)
+  assert.match(html, /40/)
+  assert.match(html, /MobileNet/)
+})
+
+test('similarityLabel thresholds', () => {
+  assert.match(similarityLabel(0.95), /Muito próxima/)
+  assert.match(similarityLabel(0.5), /Bem diferente/)
+  assert.equal(similarityLabel(null), 'Indisponível')
 })

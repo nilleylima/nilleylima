@@ -9,4 +9,10 @@ export default defineConfig({
     host: true,
     port: 4173,
   },
+  optimizeDeps: {
+    include: ['@tensorflow/tfjs', '@tensorflow-models/mobilenet'],
+  },
+  build: {
+    chunkSizeWarningLimit: 1200,
+  },
 })

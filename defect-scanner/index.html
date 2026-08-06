@@ -47,13 +47,39 @@
             <button type="button" id="btn-demo" class="btn btn-ghost">
               Demo com referência
             </button>
+            <button type="button" id="btn-history" class="btn btn-ghost">
+              Histórico
+            </button>
           </div>
         </header>
         <aside class="home-meta" aria-label="Como funciona">
           <p><span>01</span> Escolha o material</p>
           <p><span>02</span> Salve uma peça boa</p>
-          <p><span>03</span> Analise a próxima peça</p>
+          <p><span>03</span> Analise e exporte o relatório</p>
         </aside>
+      </section>
+
+      <!-- History -->
+      <section id="screen-history" class="screen screen-history" aria-label="Histórico" hidden>
+        <header class="history-top">
+          <button type="button" id="btn-history-back" class="icon-btn" aria-label="Voltar">
+            ←
+          </button>
+          <p class="brand-mark brand-mark-sm">Histórico</p>
+          <button type="button" id="btn-history-export" class="icon-btn" aria-label="Exportar JSON">
+            ↓
+          </button>
+        </header>
+        <div class="history-toolbar">
+          <p id="history-count" class="history-count">0 inspeções</p>
+          <button type="button" id="btn-history-clear" class="btn btn-ghost btn-compact">
+            Limpar
+          </button>
+        </div>
+        <ul id="history-list" class="history-list"></ul>
+        <p id="history-empty" class="history-empty" hidden>
+          Nenhuma inspeção ainda. Analise uma peça para começar.
+        </p>
       </section>
 
       <!-- Scanner -->
@@ -135,9 +161,14 @@
         </header>
         <p id="results-summary" class="results-summary"></p>
         <ul id="results-list" class="results-list"></ul>
-        <button type="button" id="btn-rescan" class="btn btn-primary btn-block">
-          Nova leitura
-        </button>
+        <div class="results-actions">
+          <button type="button" id="btn-report" class="btn btn-secondary btn-block">
+            Abrir relatório
+          </button>
+          <button type="button" id="btn-rescan" class="btn btn-primary btn-block">
+            Nova leitura
+          </button>
+        </div>
       </section>
 
       <p id="toast" class="toast" role="alert" hidden></p>

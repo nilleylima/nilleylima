@@ -1,6 +1,6 @@
 # Inspex
 
-Detecção de defeitos pela câmera do celular, com presets por material e comparação com peça boa (referência).
+Detecção de defeitos pela câmera do celular, com presets, referência (peça boa), histórico, relatório e similaridade MobileNet.
 
 ## Como usar
 
@@ -10,25 +10,27 @@ npm install
 npm run dev
 ```
 
-1. Escolha o **tipo de superfície** (Metal, Plástico, Pintura, Tecido, PCB).
-2. Abra a câmera e toque em **Salvar peça boa** com uma amostra íntegra.
-3. Enquadre a peça sob inspeção e toque em **Analisar** (ou **Ao vivo**).
-4. Sem referência, o app ainda detecta anomalias de superfície.
-5. **Demo com referência** mostra peça boa vs peça com defeitos sem câmera.
+1. Escolha o **tipo de superfície**.
+2. Abra a câmera → **Salvar peça boa**.
+3. Analise a peça sob inspeção.
+4. Abra o **relatório** ou consulte o **Histórico**.
+5. **Demo com referência** testa o fluxo sem câmera.
 
-A câmera exige HTTPS (ou localhost).
+A câmera exige HTTPS (ou localhost). O modelo MobileNet é baixado sob demanda na primeira comparação com referência.
 
-## O que há de novo (passo 2)
+## Evolução
 
-- Presets que afinam bordas/cor/variância por material
-- Modo **golden sample**: diferença normalizada contra a peça boa salva no `localStorage`
-- Demo automática com referência limpa + amostra defeituosa
+| Passo | Recurso |
+|-------|---------|
+| 1 | Câmera + anomalias clássicas (bordas/variância) |
+| 2 | Presets por material + golden sample |
+| 3 | Histórico, relatório HTML e embeddings MobileNet (TF.js) |
 
 ## Scripts
 
-| Comando           | Descrição                    |
-|-------------------|------------------------------|
-| `npm run dev`     | Servidor de desenvolvimento  |
-| `npm run build`   | Build de produção            |
-| `npm run preview` | Preview do build             |
-| `npm test`        | Testes do detector/referência|
+| Comando           | Descrição                     |
+|-------------------|-------------------------------|
+| `npm run dev`     | Servidor de desenvolvimento   |
+| `npm run build`   | Build de produção             |
+| `npm run preview` | Preview do build              |
+| `npm test`        | Testes do núcleo              |
