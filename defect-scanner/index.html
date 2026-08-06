@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1"
+    />
+    <meta name="theme-color" content="#0b1218" />
+    <meta
+      name="description"
+      content="Inspex — aponte a câmera e detecte defeitos em objetos em tempo real."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Inspex — Detecção de Defeitos</title>
+  </head>
+  <body>
+    <div id="app">
+      <!-- Landing -->
+      <section id="screen-home" class="screen screen-home is-active" aria-label="Início">
+        <div class="home-atmosphere" aria-hidden="true"></div>
+        <div class="home-scanline" aria-hidden="true"></div>
+        <header class="home-brand">
+          <p class="brand-mark">Inspex</p>
+          <h1 class="home-headline">Veja o que o olho humano deixa passar.</h1>
+          <p class="home-lede">
+            Abra a câmera, aponte para a superfície e identifique riscos,
+            manchas, trincas e irregularidades em tempo real.
+          </p>
+          <div class="home-actions">
+            <button type="button" id="btn-start" class="btn btn-primary">
+              Abrir câmera
+            </button>
+            <button type="button" id="btn-demo" class="btn btn-ghost">
+              Ver demo com amostra
+            </button>
+          </div>
+        </header>
+        <aside class="home-meta" aria-label="Como funciona">
+          <p><span>01</span> Ilumine bem a superfície</p>
+          <p><span>02</span> Preencha o quadro de leitura</p>
+          <p><span>03</span> Toque em analisar</p>
+        </aside>
+      </section>
+
+      <!-- Scanner -->
+      <section id="screen-scan" class="screen screen-scan" aria-label="Scanner" hidden>
+        <div class="scan-stage">
+          <video id="camera" playsinline muted autoplay></video>
+          <canvas id="demo-frame" class="demo-frame" hidden aria-hidden="true"></canvas>
+          <canvas id="overlay" aria-hidden="true"></canvas>
+          <canvas id="work" hidden></canvas>
+          <div class="scan-frame" aria-hidden="true">
+            <span class="corner tl"></span>
+            <span class="corner tr"></span>
+            <span class="corner bl"></span>
+            <span class="corner br"></span>
+          </div>
+          <div class="scan-beam" aria-hidden="true"></div>
+        </div>
+
+        <header class="scan-top">
+          <button type="button" id="btn-back" class="icon-btn" aria-label="Voltar">
+            ←
+          </button>
+          <p class="brand-mark brand-mark-sm">Inspex</p>
+          <button type="button" id="btn-flip" class="icon-btn" aria-label="Trocar câmera">
+            ↻
+          </button>
+        </header>
+
+        <div class="scan-status" id="scan-status" role="status">
+          Aguardando superfície…
+        </div>
+
+        <footer class="scan-controls">
+          <div class="sensitivity">
+            <label for="sensitivity">Sensibilidade</label>
+            <input
+              id="sensitivity"
+              type="range"
+              min="0.35"
+              max="0.9"
+              step="0.05"
+              value="0.55"
+            />
+          </div>
+          <div class="control-row">
+            <button type="button" id="btn-live" class="btn btn-secondary" aria-pressed="false">
+              Ao vivo
+            </button>
+            <button type="button" id="btn-analyze" class="btn btn-primary btn-analyze">
+              Analisar
+            </button>
+            <button type="button" id="btn-torch" class="btn btn-secondary" disabled>
+              Flash
+            </button>
+          </div>
+        </footer>
+      </section>
+
+      <!-- Results sheet -->
+      <section id="results-sheet" class="results-sheet" aria-live="polite" hidden>
+        <div class="results-handle" aria-hidden="true"></div>
+        <header class="results-header">
+          <h2 id="results-title">Análise</h2>
+          <button type="button" id="btn-close-results" class="icon-btn" aria-label="Fechar">
+            ×
+          </button>
+        </header>
+        <p id="results-summary" class="results-summary"></p>
+        <ul id="results-list" class="results-list"></ul>
+        <button type="button" id="btn-rescan" class="btn btn-primary btn-block">
+          Nova leitura
+        </button>
+      </section>
+
+      <p id="toast" class="toast" role="alert" hidden></p>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
