@@ -19,8 +19,8 @@
     />
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <title>Inspex — Detecção de Defeitos</title>
-    <script type="module" crossorigin src="./assets/index-JV95SfcC.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-CHTtX5_r.css">
+    <script type="module" crossorigin src="./assets/index-B2DBSfK4.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-z1LUnEy9.css">
   </head>
   <body>
     <div id="app">
@@ -35,6 +35,7 @@
             Escolha o tipo de superfície, salve uma peça boa como referência e
             compare a próxima leitura em tempo real.
           </p>
+          <p id="camera-context" class="camera-context" aria-live="polite"></p>
 
           <div class="preset-block" aria-label="Tipo de superfície">
             <p class="preset-label">Tipo de superfície</p>
@@ -174,6 +175,29 @@
       </section>
 
       <p id="toast" class="toast" role="alert" hidden></p>
+
+      <!-- Camera help dialog -->
+      <div id="camera-help" class="camera-help" hidden role="dialog" aria-modal="true" aria-labelledby="camera-help-title">
+        <div class="camera-help-card">
+          <h2 id="camera-help-title">Câmera bloqueada</h2>
+          <p id="camera-help-reason" class="camera-help-reason"></p>
+          <ol class="camera-help-steps">
+            <li>Abra exatamente: <code>http://localhost/inspex/</code></li>
+            <li>Não use IP da rede (<code>192.168...</code>)</li>
+            <li>No Chrome: cadeado ao lado da URL → Câmera → <strong>Permitir</strong></li>
+            <li>Feche apps que estejam usando a webcam (Zoom, Teams…)</li>
+            <li>Recarregue a página e tente de novo</li>
+          </ol>
+          <div class="camera-help-actions">
+            <button type="button" id="btn-help-demo" class="btn btn-primary btn-block">
+              Abrir Demo agora
+            </button>
+            <button type="button" id="btn-help-close" class="btn btn-ghost btn-block">
+              Fechar
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </body>
 </html>

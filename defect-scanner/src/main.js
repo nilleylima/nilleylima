@@ -60,6 +60,11 @@ const els = {
   btnCloseResults: document.getElementById('btn-close-results'),
   btnRescan: document.getElementById('btn-rescan'),
   btnReport: document.getElementById('btn-report'),
+  cameraContext: document.getElementById('camera-context'),
+  cameraHelp: document.getElementById('camera-help'),
+  cameraHelpReason: document.getElementById('camera-help-reason'),
+  btnHelpDemo: document.getElementById('btn-help-demo'),
+  btnHelpClose: document.getElementById('btn-help-close'),
 }
 
 const camera = new CameraController(els.video)
@@ -305,9 +310,56 @@ function openHistory() {
   renderHistory()
 }
 
+function explainCameraError(err) {
+  const name = err?.name || ''
+  const host = location.hostname
+  const href = location.href
+
+  if (!window.isSecureContext && host !== 'localhost' && host !== '127.0.0.1') {
+    return `Contexto inseguro (${href}). No XAMPP abra http://localhost/inspex/ — não use IP da rede.`
+  }
+  if (name === 'NotAllowedError' || name === 'PermissionDeniedError') {
+    return 'Permissão da câmera negada. No Chrome: cadeado ao lado da URL → Câmera → Permitir → recarregue.'
+  }
+  if (name === 'NotFoundError' || name === 'DevicesNotFoundError') {
+    return 'Nenhuma câmera encontrada neste computador. Use a Demo ou conecte uma webcam.'
+  }
+  if (name === 'NotReadableError' || name === 'TrackStartError') {
+    return 'A câmera está em uso por outro app (Zoom, Teams, etc.). Feche-os e tente de novo.'
+  }
+  if (name === 'SecurityError') {
+    return `Bloqueio de segurança em ${href}. Use http://localhost/inspex/`
+  }
+  return `Falha ao abrir a câmera (${name || 'erro'}). Verifique a URL localhost, a permissão e a Demo.`
+}
+
+function showCameraHelp(reason) {
+  els.cameraHelpReason.textContent = reason
+  els.cameraHelp.hidden = false
+}
+
+function hideCameraHelp() {
+  els.cameraHelp.hidden = true
+}
+
+function updateCameraContextBanner() {
+  if (!els.cameraContext) return
+  const ok =
+    window.isSecureContext ||
+    location.hostname === 'localhost' ||
+    location.hostname === '127.0.0.1'
+  els.cameraContext.textContent = ok
+    ? `URL ok para câmera: ${location.href}`
+    : `URL bloqueia câmera: ${location.href} — use http://localhost/inspex/`
+  els.cameraContext.classList.toggle('is-ok', ok)
+  els.cameraContext.classList.toggle('is-bad', !ok)
+}
+
 async function startCamera() {
   if (!navigator.mediaDevices?.getUserMedia) {
-    showToast('Este navegador não permite acesso à câmera. Use o modo demo.')
+    showCameraHelp(
+      'Este navegador não expõe a API de câmera. Use Chrome/Edge ou abra a Demo.',
+    )
     return
   }
 
@@ -331,11 +383,11 @@ async function startCamera() {
     prefetchEmbeddingsModel()
   } catch (err) {
     console.error(err)
+    camera.stop()
     showScreen('home')
-    showToast(
-      'Não foi possível abrir a câmera. No XAMPP use http://localhost/inspex/ (não o IP), permita a câmera, ou use a Demo.',
-      5600,
-    )
+    const reason = explainCameraError(err)
+    showToast(reason, 4500)
+    showCameraHelp(reason)
   }
 }
 
@@ -546,6 +598,11 @@ async function leaveScan() {
 
 els.btnStart.addEventListener('click', startCamera)
 els.btnDemo.addEventListener('click', startDemo)
+els.btnHelpDemo?.addEventListener('click', () => {
+  hideCameraHelp()
+  startDemo()
+})
+els.btnHelpClose?.addEventListener('click', hideCameraHelp)
 els.btnHistory.addEventListener('click', openHistory)
 els.btnHistoryBack.addEventListener('click', () => {
   state.mode = 'home'
@@ -613,8 +670,13 @@ window.addEventListener('beforeunload', () => {
   stopLiveLoop()
 })
 
-if (!window.isSecureContext && location.hostname !== 'localhost') {
-  showToast('Câmera exige HTTPS (ou localhost). Use o modo demo se necessário.', 5000)
+updateCameraContextBanner()
+if (
+  !window.isSecureContext &&
+  location.hostname !== 'localhost' &&
+  location.hostname !== '127.0.0.1'
+) {
+  showToast('Câmera exige http://localhost/inspex/ no XAMPP. Use a Demo se precisar.', 5000)
 }
 
 renderPresets()

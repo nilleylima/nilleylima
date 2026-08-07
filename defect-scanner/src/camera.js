@@ -21,15 +21,27 @@ export class CameraController {
       },
     }
 
-    try {
-      this.stream = await navigator.mediaDevices.getUserMedia(constraints)
-    } catch (err) {
-      // Fallback without facingMode ideal for desktop / older browsers
-      this.stream = await navigator.mediaDevices.getUserMedia({
+    const attempts = [
+      constraints,
+      // Notebooks / XAMPP desktop: often only have a user-facing webcam
+      {
         audio: false,
-        video: true,
-      })
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } },
+      },
+      { audio: false, video: true },
+    ]
+
+    let lastError = null
+    for (const attempt of attempts) {
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia(attempt)
+        lastError = null
+        break
+      } catch (err) {
+        lastError = err
+      }
     }
+    if (!this.stream) throw lastError || new Error('getUserMedia failed')
 
     this.video.srcObject = this.stream
     this.track = this.stream.getVideoTracks()[0] || null
