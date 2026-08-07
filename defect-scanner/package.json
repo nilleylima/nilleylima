@@ -1,0 +1,21 @@
+{
+  "name": "inspex-defect-scanner",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Inspex — detecção de defeitos de superfície pela câmera do celular",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "build:xampp": "vite build",
+    "preview": "vite preview",
+    "test": "node --test src/detector.test.js"
+  },
+  "devDependencies": {
+    "vite": "^8.2.0"
+  },
+  "dependencies": {
+    "@tensorflow-models/mobilenet": "^2.1.1",
+    "@tensorflow/tfjs": "^4.22.0"
+  }
+}

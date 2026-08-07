@@ -1,0 +1,12 @@
+# Inspex no Apache / XAMPP
+Options -Indexes
+DirectoryIndex index.html
+
+<IfModule mod_mime.c>
+  AddType text/javascript .js .mjs
+  AddType application/wasm .wasm
+</IfModule>
+
+<IfModule mod_headers.c>
+  Header set Permissions-Policy "camera=(self)"
+</IfModule>

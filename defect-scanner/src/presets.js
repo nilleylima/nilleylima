@@ -1,0 +1,73 @@
+/** Surface-type presets that tune the classical detector. */
+
+export const SURFACE_PRESETS = [
+  {
+    id: 'metal',
+    label: 'Metal',
+    hint: 'Riscos e trincas em superfícies metálicas',
+    sensitivity: 0.55,
+    edgeWeight: 0.5,
+    varWeight: 0.25,
+    colorWeight: 0.1,
+    brightnessWeight: 0.85,
+    minConfidence: 0.34,
+    minAreaRatio: 0.001,
+    refDiffWeight: 0.55,
+  },
+  {
+    id: 'plastic',
+    label: 'Plástico',
+    hint: 'Manchas, riscos e falhas de moldagem',
+    sensitivity: 0.58,
+    edgeWeight: 0.4,
+    varWeight: 0.28,
+    colorWeight: 0.2,
+    brightnessWeight: 0.95,
+    minConfidence: 0.32,
+    minAreaRatio: 0.0011,
+    refDiffWeight: 0.6,
+  },
+  {
+    id: 'paint',
+    label: 'Pintura',
+    hint: 'Bolhas, descascados e manchas de tinta',
+    sensitivity: 0.62,
+    edgeWeight: 0.35,
+    varWeight: 0.3,
+    colorWeight: 0.28,
+    brightnessWeight: 1.05,
+    minConfidence: 0.33,
+    minAreaRatio: 0.0012,
+    refDiffWeight: 0.65,
+  },
+  {
+    id: 'fabric',
+    label: 'Tecido',
+    hint: 'Furos, manchas e irregularidades de trama',
+    sensitivity: 0.5,
+    edgeWeight: 0.32,
+    varWeight: 0.38,
+    colorWeight: 0.22,
+    brightnessWeight: 0.9,
+    minConfidence: 0.36,
+    minAreaRatio: 0.0014,
+    refDiffWeight: 0.5,
+  },
+  {
+    id: 'pcb',
+    label: 'PCB',
+    hint: 'Trilhas quebradas, solda e manchas',
+    sensitivity: 0.6,
+    edgeWeight: 0.55,
+    varWeight: 0.22,
+    colorWeight: 0.18,
+    brightnessWeight: 0.8,
+    minConfidence: 0.35,
+    minAreaRatio: 0.0009,
+    refDiffWeight: 0.7,
+  },
+]
+
+export function getPreset(id) {
+  return SURFACE_PRESETS.find((p) => p.id === id) || SURFACE_PRESETS[0]
+}
