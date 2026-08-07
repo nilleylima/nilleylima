@@ -1,0 +1,59 @@
+============================================================
+  INSPEX — instalação no XAMPP (Windows)
+============================================================
+
+Eu (o assistente) não consigo clicar no XAMPP do SEU PC.
+Mas o projeto já vem com a pasta pronta para copiar.
+
+------------------------------------------------------------
+PASSO A PASSO (sem precisar de Node.js)
+------------------------------------------------------------
+
+1) Baixe a branch do GitHub e extraia o ZIP:
+   https://github.com/nilleylima/nilleylima/tree/cursor/defeitos-camera-mobile-3df4
+
+2) Abra a pasta:
+   defect-scanner\xampp-htdocs\inspex
+
+3) Copie a pasta "inspex" inteira para:
+   C:\xampp\htdocs\inspex
+
+   Resultado esperado:
+   C:\xampp\htdocs\inspex\index.html
+   C:\xampp\htdocs\inspex\assets\...
+
+   OU: clique duas vezes em:
+   defect-scanner\instalar-xampp.bat
+
+4) Abra o "XAMPP Control Panel"
+   - Clique em Start no Apache
+   - O Apache deve ficar com fundo verde
+
+5) Abra o navegador (Chrome ou Edge) e acesse:
+   http://localhost/inspex/
+
+------------------------------------------------------------
+CÂMERA
+------------------------------------------------------------
+
+- Use SEMPRE: http://localhost/inspex/
+- NÃO use: http://192.168.x.x/...  (bloqueia a câmera)
+- Quando o navegador perguntar, clique em Permitir
+- Sem câmera / erro: clique em "Demo com referência"
+
+------------------------------------------------------------
+SE O XAMPP NÃO ESTIVER EM C:\xampp
+------------------------------------------------------------
+
+Edite o arquivo instalar-xampp.bat e mude a linha:
+  set "XAMPP_DIR=C:\xampp"
+para o caminho correto, por exemplo:
+  set "XAMPP_DIR=D:\xampp"
+
+------------------------------------------------------------
+PRONTO
+------------------------------------------------------------
+
+URL: http://localhost/inspex/
+Demo: botão "Demo com referência" na tela inicial
+Histórico: botão "Histórico"

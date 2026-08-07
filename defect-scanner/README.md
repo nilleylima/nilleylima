@@ -2,40 +2,32 @@
 
 Detecção de defeitos pela câmera do celular, com presets, referência (peça boa), histórico, relatório e similaridade MobileNet.
 
-## Rodar no XAMPP (Windows)
+## Rodar no XAMPP (Windows) — instalação pronta
 
-### 1. Pré-requisitos
-- [XAMPP](https://www.apachefriends.org/) instalado
-- [Node.js](https://nodejs.org/) instalado (só para gerar o build uma vez)
+**Não precisa de Node.js.** A pasta `xampp-htdocs/inspex` já vem compilada.
 
-### 2. Forma automática
-1. Baixe o projeto e abra a pasta `defect-scanner`
-2. Se o XAMPP **não** estiver em `C:\xampp`, edite `deploy-xampp.bat` e ajuste `XAMPP_DIR`
-3. Clique duas vezes em **`deploy-xampp.bat`**
-4. No XAMPP Control Panel, inicie o **Apache**
-5. Abra no navegador: **http://localhost/inspex/**
+### Instalação em 1 clique
+1. Baixe a branch e abra `defect-scanner`
+2. Clique duas vezes em **`instalar-xampp.bat`**
+3. No XAMPP Control Panel → **Start** no Apache
+4. Abra **http://localhost/inspex/**
 
-### 3. Forma manual
-No Prompt (dentro de `defect-scanner`):
+Guia completo: `INSTALAR-XAMPP.txt`
 
-```bat
-npm install
-npm run build
-```
-
-Copie **todo o conteúdo** da pasta `dist` para:
+### Instalação manual (copiar pasta)
+Copie `defect-scanner/xampp-htdocs/inspex` para:
 
 ```text
-C:\xampp\htdocs\inspex\
+C:\xampp\htdocs\inspex
 ```
-
-Depois abra: **http://localhost/inspex/**
 
 ### Câmera no XAMPP
 - Use **http://localhost/inspex/** — funciona
-- **Não use** `http://192.168.x.x/...` no celular sem HTTPS — o navegador bloqueia a câmera
-- Se pedir permissão, clique em **Permitir**
+- **Não use** `http://192.168.x.x/...` no celular sem HTTPS
 - Sem câmera: use **Demo com referência**
+
+### Regenerar o build (opcional, precisa Node.js)
+`deploy-xampp.bat` ou `npm run build` e copie `dist` de novo.
 
 ## Desenvolvimento (sem XAMPP)
 
