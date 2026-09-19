@@ -2,7 +2,8 @@
 
 **Objetivo:** posicionar a NSL como referência em infraestrutura estável para empresas.  
 **Formato sugerido:** carrossel 6 slides (1:1) ou post único com arte forte + legenda longa.  
-**Tom:** institucional e comercial — autoridade sem arrogância.
+**Tom:** institucional e comercial — autoridade sem arrogância.  
+**Arte pronta (capa):** [`imagens/nsl-post-infraestrutura.png`](imagens/nsl-post-infraestrutura.png)
 
 ---
 

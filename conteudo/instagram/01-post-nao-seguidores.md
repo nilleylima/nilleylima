@@ -2,7 +2,8 @@
 
 **Objetivo:** aparecer no Explorar / Reels e converter visitantes frios em seguidores ou leads.  
 **Formato sugerido:** carrossel 5 slides (1:1) ou Reels 15–20s com texto na tela.  
-**Tom:** direto, educativo, sem jargão pesado — assume que a pessoa nunca ouviu falar da NSL.
+**Tom:** direto, educativo, sem jargão pesado — assume que a pessoa nunca ouviu falar da NSL.  
+**Arte pronta (capa):** [`imagens/nsl-post-nao-seguidores.png`](imagens/nsl-post-nao-seguidores.png)
 
 ---
 
