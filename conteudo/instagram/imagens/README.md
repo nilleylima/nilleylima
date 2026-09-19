@@ -8,13 +8,14 @@ Paleta usada nas artes (definida para o pacote de conteúdo; sem manual oficial 
 | Destaque | Ciano | `#00A8E8` |
 | Texto | Branco | `#FFFFFF` |
 
-**Marca nos posts:** `NSL` + barra ciano + `SOLUÇÕES EM TI` (canto superior esquerdo).  
+**Marca nos posts:** logo oficial (`nsl-logo.jpg`) em badge branco no topo.  
 **Estilo:** tech corporativo, tipografia sans-serif forte, poucos elementos, sem roxo/neon excessivo.
 
 ## Arquivos
 
 | Arquivo | Uso |
 |---------|-----|
+| `nsl-logo.jpg` | Logo oficial NSL (referência de marca) |
 | `nsl-post-nao-seguidores.png` | Capa do post de alcance (não-seguidores) |
 | `nsl-post-infraestrutura.png` | Capa do post de infraestrutura |
 
